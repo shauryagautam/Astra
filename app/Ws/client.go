@@ -75,11 +75,12 @@ func (c *Client) readLoop() {
 		}
 
 		// Handle client-initiated events (like joining rooms)
-		if event.Event == "join" {
+		switch event.Event {
+		case "join":
 			if room, ok := event.Payload.(string); ok {
 				c.Join(room)
 			}
-		} else if event.Event == "leave" {
+		case "leave":
 			if room, ok := event.Payload.(string); ok {
 				c.Leave(room)
 			}
