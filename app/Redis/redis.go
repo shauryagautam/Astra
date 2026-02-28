@@ -204,6 +204,10 @@ func (c *Connection) LRange(ctx context.Context, key string, start int64, stop i
 	return c.client.LRange(ctx, key, start, stop).Result()
 }
 
+func (c *Connection) BRPop(ctx context.Context, timeout time.Duration, keys ...string) ([]string, error) {
+	return c.client.BRPop(ctx, timeout, keys...).Result()
+}
+
 // --- Set Commands ---
 
 func (c *Connection) SAdd(ctx context.Context, key string, members ...any) error {

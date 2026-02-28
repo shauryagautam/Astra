@@ -163,6 +163,71 @@ err := models.Create(db, user)
 
 ---
 
+## 📡 Advanced Features
+
+### 1. Event System (`contracts/event.go`, `app/Events/dispatcher.go`)
+Synchronous and asynchronous event dispatching logic.
+```go
+Event.On("user:registered", func(data any) error {
+    user := data.(*User)
+    fmt.Printf("Welcome %s!\n", user.Name)
+    return nil
+})
+
+// Emit event
+Event.Emit("user:registered", user)
+```
+
+### 2. Queue / Job System (`contracts/queue.go`, `app/Queue/queue.go`)
+Redis-backed background job processing with delayed jobs and worker support.
+```go
+// Push job to queue
+Queue.Push(&SendEmailJob{Email: "user@example.com"})
+
+// Push with delay (in seconds)
+Queue.Later(60, &ReminderJob{Id: 123})
+```
+
+### 3. File Storage / Drive (`contracts/drive.go`, `app/Drive/drive.go`)
+Storage abstraction with support for multiple disks (currently Local).
+```go
+// Save file
+Drive.Put("avatars/user_1.png", contents)
+
+// Save stream
+Drive.PutStream("docs/report.pdf", reader)
+
+// Get URL
+url := Drive.Url("avatars/user_1.png")
+```
+
+### 4. Mail System (`contracts/mail.go`, `app/Mail/smtp.go`)
+Fluent API for sending emails with support for background queuing.
+```go
+Mail.Send(ctx, contracts.MailMessage{
+    To: []string{"user@example.com"},
+    Subject: "Welcome!",
+    HtmlView: "<h1>Hello!</h1>",
+})
+
+// Send in background via Queue system
+Mail.SendLater(ctx, message)
+```
+
+### 5. WebSocket Support (`contracts/ws.go`, `app/Ws/server.go`)
+Hub-based WebSocket server with room management and broadcasting.
+```go
+Ws.OnConnect(func(client contracts.WsClientContract) {
+    client.Join("chat:room_1")
+    client.Send("welcome", "Hello!")
+})
+
+// Broadcast to room
+Ws.BroadcastToRoom("chat:room_1", "new_message", msg)
+```
+
+---
+
 ## 🖥️ CLI Commands
 
 ```bash

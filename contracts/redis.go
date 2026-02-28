@@ -42,6 +42,7 @@ type RedisConnectionContract interface {
 	RPop(ctx context.Context, key string) (string, error)
 	LLen(ctx context.Context, key string) (int64, error)
 	LRange(ctx context.Context, key string, start int64, stop int64) ([]string, error)
+	BRPop(ctx context.Context, timeout time.Duration, keys ...string) ([]string, error)
 
 	// --- Set Commands ---
 	SAdd(ctx context.Context, key string, members ...any) error
