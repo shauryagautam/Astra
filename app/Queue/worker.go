@@ -22,13 +22,13 @@ func (q *RedisQueue) Process(queueName string) error {
 		// We use a 5-second timeout to allow for periodic health checks or loop exit
 		items, err := q.redis.BRPop(ctx, 5*time.Second, queueKey)
 		if err != nil {
-			// In our contract, we'll assume a generic error for now
-			// but could refine this based on the actual driver response.
+			// Refined error handling: Check for redis.Nil which indicates a timeout in BRPop
 			if err.Error() == "redis: nil" {
-				continue // Timeout, no jobs
+				continue // Normal timeout, no jobs available
 			}
-			q.logger.Printf("Redis error: %v", err)
-			time.Sleep(1 * time.Second)
+
+			q.logger.Printf("Redis connection error: %v", err)
+			time.Sleep(2 * time.Second) // Backoff on actual connection errors
 			continue
 		}
 
@@ -73,8 +73,15 @@ func (q *RedisQueue) Process(queueName string) error {
 				executeAt := float64(time.Now().Add(time.Duration(delay) * time.Second).Unix())
 				_ = q.redis.ZAdd(ctx, q.prefix+"delayed", executeAt, payloadBytes)
 			} else {
-				q.logger.Printf("Job '%s' failed after %d attempts. Moving to failed queue (not implemented yet).",
+				q.logger.Printf("Job '%s' failed after %d attempts. Moving to failed queue.",
 					payload.Name, payload.MaxAttempts)
+
+				// Push to failed jobs list for manual inspection/retry
+				payloadBytes, _ := json.Marshal(payload)
+				failedKey := q.prefix + "failed"
+				if pushErr := q.redis.LPush(ctx, failedKey, payloadBytes); pushErr != nil {
+					q.logger.Printf("CRITICAL: Failed to push job '%s' to failed queue: %v", payload.Name, pushErr)
+				}
 			}
 		} else {
 			q.logger.Printf("Job '%s' finished in %s", payload.Name, time.Since(start))

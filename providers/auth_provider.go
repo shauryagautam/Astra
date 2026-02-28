@@ -6,6 +6,7 @@ import (
 	auth "github.com/shaurya/adonis/app/Auth"
 	hash "github.com/shaurya/adonis/app/Hash"
 	"github.com/shaurya/adonis/contracts"
+	"gorm.io/gorm"
 )
 
 // AuthProvider registers hash and auth services into the container.
@@ -39,8 +40,12 @@ func (p *AuthProvider) Register() error {
 	})
 	p.App.Alias("Auth", "Adonis/Core/Auth")
 
-	// Register the in-memory token store (swap for Redis in production)
+	// Register the token store (Database-backed for production, Memory for development)
 	p.App.Singleton("Adonis/Core/TokenStore", func(c contracts.ContainerContract) (any, error) {
+		if c.HasBinding("Adonis/Lucid/Database") {
+			db := c.Use("Adonis/Lucid/Database").(*gorm.DB)
+			return auth.NewDatabaseTokenStore(db), nil
+		}
 		return auth.NewMemoryTokenStore(), nil
 	})
 	p.App.Alias("TokenStore", "Adonis/Core/TokenStore")
