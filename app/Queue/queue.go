@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -15,6 +17,7 @@ type RedisQueue struct {
 	redis    contracts.RedisConnectionContract
 	registry contracts.JobRegistry
 	prefix   string
+	logger   *log.Logger
 }
 
 // NewRedisQueue creates a new Redis-backed queue manager.
@@ -23,15 +26,18 @@ func NewRedisQueue(r contracts.RedisConnectionContract, registry contracts.JobRe
 		redis:    r,
 		registry: registry,
 		prefix:   "adonis:queue:",
+		logger:   log.New(os.Stdout, "[adonis:queue] ", log.LstdFlags),
 	}
 }
 
 // JobPayload represents the data stored in Redis.
 type JobPayload struct {
-	Name      string    `json:"name"`
-	Data      []byte    `json:"data"`
-	Attempts  int       `json:"attempts"`
-	CreatedAt time.Time `json:"created_at"`
+	Name        string    `json:"name"`
+	Data        []byte    `json:"data"`
+	Attempts    int       `json:"attempts"`
+	MaxAttempts int       `json:"max_attempts"`
+	Backoff     int       `json:"backoff"` // seconds
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Push adds a job to the default queue.
@@ -41,7 +47,17 @@ func (q *RedisQueue) Push(job contracts.JobContract) error {
 		return fmt.Errorf("failed to marshal job: %w", err)
 	}
 
-	return q.PushRaw(job.DisplayName(), data)
+	payload := JobPayload{
+		Name:        job.DisplayName(),
+		Data:        data,
+		Attempts:    0,
+		MaxAttempts: job.Tries(),
+		Backoff:     job.Backoff(),
+		CreatedAt:   time.Now(),
+	}
+
+	payloadBytes, _ := json.Marshal(payload)
+	return q.redis.LPush(context.Background(), q.prefix+"default", payloadBytes)
 }
 
 // PushRaw adds a raw payload to the queue.
@@ -60,15 +76,15 @@ func (q *RedisQueue) PushRaw(jobName string, data any) error {
 	}
 
 	payload := JobPayload{
-		Name:      jobName,
-		Data:      rawData,
-		Attempts:  0,
-		CreatedAt: time.Now(),
+		Name:        jobName,
+		Data:        rawData,
+		Attempts:    0,
+		MaxAttempts: 1, // Default to 1 for raw payloads
+		Backoff:     0,
+		CreatedAt:   time.Now(),
 	}
 
 	payloadBytes, _ := json.Marshal(payload)
-
-	// Default queue name is "default"
 	return q.redis.LPush(context.Background(), q.prefix+"default", payloadBytes)
 }
 
@@ -80,10 +96,12 @@ func (q *RedisQueue) Later(delay int, job contracts.JobContract) error {
 	}
 
 	payload := JobPayload{
-		Name:      job.DisplayName(),
-		Data:      data,
-		Attempts:  0,
-		CreatedAt: time.Now(),
+		Name:        job.DisplayName(),
+		Data:        data,
+		Attempts:    0,
+		MaxAttempts: job.Tries(),
+		Backoff:     job.Backoff(),
+		CreatedAt:   time.Now(),
 	}
 
 	payloadBytes, _ := json.Marshal(payload)

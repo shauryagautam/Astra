@@ -70,6 +70,10 @@ type ContainerContract interface {
 	// This is a simplified version of AdonisJS's auto-injection.
 	Call(fn any, args ...any) ([]any, error)
 
+	// RegisterType maps a reflect.Type to a namespace for auto-injection.
+	// Mirrors: container.registerType(Router, 'Adonis/Core/Route')
+	RegisterType(kind any, namespace string)
+
 	// WithBindings executes a callback with specific bindings resolved.
 	// Useful for scoped resolution within request lifecycles.
 	WithBindings(namespaces []string, callback func(bindings map[string]any) error) error

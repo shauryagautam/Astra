@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"path/filepath"
 
 	drive "github.com/shaurya/adonis/app/Drive"
@@ -37,6 +38,21 @@ func (p *DriveProvider) Register() error {
 		// Register the local disk
 		rootPath := filepath.Join(p.App.AppRoot(), "storage")
 		manager.RegisterDisk("local", drive.NewLocalDriver(rootPath))
+
+		// Register S3 disk if configured
+		s3Region := envManager.Get("S3_REGION", "")
+		s3Bucket := envManager.Get("S3_BUCKET", "")
+		if s3Region != "" && s3Bucket != "" {
+			s3Cfg := drive.S3Config{
+				Region: s3Region,
+				Bucket: s3Bucket,
+			}
+			// We use background context for initialization
+			s3Driver, err := drive.NewS3Driver(context.Background(), s3Cfg)
+			if err == nil {
+				manager.RegisterDisk("s3", s3Driver)
+			}
+		}
 
 		return manager, nil
 	})

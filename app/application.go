@@ -94,6 +94,10 @@ func (a *Application) WithBindings(namespaces []string, callback func(bindings m
 	return a.container.WithBindings(namespaces, callback)
 }
 
+func (a *Application) RegisterType(typ any, namespace string) {
+	a.container.RegisterType(typ, namespace)
+}
+
 // --- ApplicationContract methods ---
 
 // Environment returns the current application environment.

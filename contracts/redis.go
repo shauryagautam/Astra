@@ -62,6 +62,16 @@ type RedisConnectionContract interface {
 	// --- Misc ---
 	FlushDB(ctx context.Context) error
 	Ping(ctx context.Context) error
+
+	// --- Pipelining ---
+	Pipeline() RedisPipeContract
+}
+
+// RedisPipeContract defines a pipeline for batching Redis commands.
+type RedisPipeContract interface {
+	LPush(ctx context.Context, key string, values ...any)
+	ZRem(ctx context.Context, key string, members ...any)
+	Exec(ctx context.Context) error
 }
 
 // PubSubContract defines the pub/sub subscriber interface.

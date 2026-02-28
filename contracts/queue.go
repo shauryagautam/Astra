@@ -9,6 +9,12 @@ type JobContract interface {
 
 	// DisplayName returns a human-readable name for the job.
 	DisplayName() string
+
+	// Tries returns the maximum number of attempts for this job.
+	Tries() int
+
+	// Backoff returns the delay in seconds between retries.
+	Backoff() int
 }
 
 // QueueContract defines the queue manager.

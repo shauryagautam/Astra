@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/shaurya/adonis/contracts"
@@ -22,6 +23,7 @@ type Container struct {
 	instances  map[string]any
 	aliases    map[string]string
 	fakes      map[string]contracts.BindingFactory
+	typeMap    map[reflect.Type]string
 }
 
 // NewContainer creates a new IoC container.
@@ -32,6 +34,7 @@ func NewContainer() *Container {
 		instances:  make(map[string]any),
 		aliases:    make(map[string]string),
 		fakes:      make(map[string]contracts.BindingFactory),
+		typeMap:    make(map[reflect.Type]string),
 	}
 }
 
@@ -164,13 +167,86 @@ func (c *Container) Restore(namespace string) {
 	delete(c.fakes, resolved)
 }
 
-// Call resolves dependencies and calls the given function.
-// For simplicity, this passes additional args directly.
-func (c *Container) Call(fn any, args ...any) ([]any, error) {
-	// In Go, we can't do full auto-injection like AdonisJS.
-	// This is a simplified version that calls the function with provided args.
-	// For full reflection-based injection, use the reflect package.
-	return nil, fmt.Errorf("Call() is not yet implemented — use Make() for explicit resolution")
+// RegisterType maps a reflect.Type to a namespace for auto-injection.
+func (c *Container) RegisterType(kind any, namespace string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var t reflect.Type
+	if rt, ok := kind.(reflect.Type); ok {
+		t = rt
+	} else {
+		t = reflect.TypeOf(kind)
+		// If it's a pointer to an interface/type, get the element type
+		if t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Interface {
+			t = t.Elem()
+		}
+	}
+
+	c.typeMap[t] = namespace
+}
+
+// Call resolves dependencies and calls the given function using reflection.
+// Mirrors AdonisJS's ability to inject dependencies into functions/controllers.
+func (c *Container) Call(fn any, explicitArgs ...any) ([]any, error) {
+	val := reflect.ValueOf(fn)
+	if val.Kind() != reflect.Func {
+		return nil, fmt.Errorf("Call() expects a function, got %s", val.Kind())
+	}
+
+	fnType := val.Type()
+	numIn := fnType.NumIn()
+	in := make([]reflect.Value, numIn)
+
+	explicitIdx := 0
+	for i := 0; i < numIn; i++ {
+		argType := fnType.In(i)
+
+		// 1. Try to resolve by type mapping
+		c.mu.RLock()
+		namespace, ok := c.typeMap[argType]
+		c.mu.RUnlock()
+
+		if ok {
+			instance, err := c.Make(namespace)
+			if err != nil {
+				return nil, fmt.Errorf("dependency injection failed for param %d (%s): %w", i, argType, err)
+			}
+			in[i] = reflect.ValueOf(instance)
+			continue
+		}
+
+		// 2. Try to use explicit args
+		if explicitIdx < len(explicitArgs) {
+			argVal := reflect.ValueOf(explicitArgs[explicitIdx])
+			if argVal.Type().AssignableTo(argType) {
+				in[i] = argVal
+				explicitIdx++
+				continue
+			}
+		}
+
+		// 3. Fallback: Check if the type itself is a registered binding (by full name)
+		// This is a "magic" fallback for interfaces.
+		resolvedNamespace := argType.String()
+		if c.HasBinding(resolvedNamespace) {
+			instance, err := c.Make(resolvedNamespace)
+			if err == nil {
+				in[i] = reflect.ValueOf(instance)
+				continue
+			}
+		}
+
+		return nil, fmt.Errorf("could not resolve dependency for param %d of type %s", i, argType)
+	}
+
+	out := val.Call(in)
+	results := make([]any, len(out))
+	for i, res := range out {
+		results[i] = res.Interface()
+	}
+
+	return results, nil
 }
 
 // WithBindings resolves multiple bindings and passes them to a callback.

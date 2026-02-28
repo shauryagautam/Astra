@@ -177,6 +177,53 @@ func TestHttpContextIntegration(t *testing.T) {
 	}
 }
 
+func TestRouterCommit(t *testing.T) {
+	router := NewRouter()
+	router.Get("/static", func(ctx contracts.HttpContextContract) error { return nil })
+	router.Get("/users/:id", func(ctx contracts.HttpContextContract) error { return nil })
+
+	// Before commit, should work via fallback
+	_, _, found := router.FindRoute("GET", "/static")
+	if !found {
+		t.Fatal("Should find static route before commit")
+	}
+
+	router.Commit()
+
+	// After commit, should work via optimized maps
+	_, _, found = router.FindRoute("GET", "/static")
+	if !found {
+		t.Fatal("Should find static route after commit")
+	}
+
+	_, params, found := router.FindRoute("GET", "/users/123")
+	if !found || params["id"] != "123" {
+		t.Fatal("Should find dynamic route after commit")
+	}
+}
+
+func BenchmarkFindRouteStatic(b *testing.B) {
+	router := NewRouter()
+	router.Get("/api/v1/users/profile/settings", func(ctx contracts.HttpContextContract) error { return nil })
+	router.Commit()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		router.FindRoute("GET", "/api/v1/users/profile/settings")
+	}
+}
+
+func BenchmarkFindRouteDynamic(b *testing.B) {
+	router := NewRouter()
+	router.Get("/api/v1/users/:id/posts/:post_id", func(ctx contracts.HttpContextContract) error { return nil })
+	router.Commit()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		router.FindRoute("GET", "/api/v1/users/123/posts/456")
+	}
+}
+
 // testResourceController implements ResourceController for testing.
 type testResourceController struct{}
 

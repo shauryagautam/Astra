@@ -132,14 +132,19 @@ var _ contracts.RouteGroupContract = (*RouteGroup)(nil)
 // Router is the main route registry.
 // Mirrors AdonisJS's Route module: Route.get(), Route.group(), Route.resource().
 type Router struct {
-	mu     sync.RWMutex
-	routes []*Route
+	mu            sync.RWMutex
+	routes        []*Route
+	staticRoutes  map[string]map[string]*Route // method -> path -> route
+	dynamicRoutes map[string][]*Route          // method -> routes with params
+	isCommitted   bool
 }
 
 // NewRouter creates a new Router.
 func NewRouter() *Router {
 	return &Router{
-		routes: make([]*Route, 0),
+		routes:        make([]*Route, 0),
+		staticRoutes:  make(map[string]map[string]*Route),
+		dynamicRoutes: make(map[string][]*Route),
 	}
 }
 
@@ -255,30 +260,72 @@ func (router *Router) FindRoute(method string, path string) (contracts.RouteCont
 	router.mu.RLock()
 	defer router.mu.RUnlock()
 
-	for _, route := range router.routes {
-		// Check method match
-		methodMatch := false
-		for _, m := range route.methods {
-			if m == method {
-				methodMatch = true
-				break
-			}
-		}
-		if !methodMatch {
-			continue
-		}
-
-		// Check pattern match
-		if params, ok := route.match(path); ok {
-			return route, params, true
+	// 1. Try static routes first (O(1))
+	if methodRoutes, ok := router.staticRoutes[method]; ok {
+		if route, ok := methodRoutes[path]; ok {
+			return route, nil, true
 		}
 	}
+
+	// 2. Try dynamic routes (ordered iteration)
+	if dynamicRoutes, ok := router.dynamicRoutes[method]; ok {
+		for _, route := range dynamicRoutes {
+			if params, ok := route.match(path); ok {
+				return route, params, true
+			}
+		}
+	}
+
+	// 3. Fallback to uncommitted routes if not committed yet
+	if !router.isCommitted {
+		for _, route := range router.routes {
+			// Check method match
+			methodMatch := false
+			for _, m := range route.methods {
+				if m == method {
+					methodMatch = true
+					break
+				}
+			}
+			if !methodMatch {
+				continue
+			}
+
+			// Check pattern match
+			if params, ok := route.match(path); ok {
+				return route, params, true
+			}
+		}
+	}
+
 	return nil, nil, false
 }
 
-// Commit finalizes route registration. Currently a no-op but reserved
-// for future route tree compilation/optimization.
-func (router *Router) Commit() {}
+// Commit finalizes route registration by compiling optimized structures.
+func (router *Router) Commit() {
+	router.mu.Lock()
+	defer router.mu.Unlock()
+
+	router.staticRoutes = make(map[string]map[string]*Route)
+	router.dynamicRoutes = make(map[string][]*Route)
+
+	for _, route := range router.routes {
+		isDynamic := strings.Contains(route.pattern, ":") || strings.Contains(route.pattern, "*")
+
+		for _, method := range route.methods {
+			if isDynamic {
+				router.dynamicRoutes[method] = append(router.dynamicRoutes[method], route)
+			} else {
+				if _, ok := router.staticRoutes[method]; !ok {
+					router.staticRoutes[method] = make(map[string]*Route)
+				}
+				router.staticRoutes[method][route.pattern] = route
+			}
+		}
+	}
+
+	router.isCommitted = true
+}
 
 // PrintRoutes returns a formatted table of all registered routes.
 func (router *Router) PrintRoutes() string {

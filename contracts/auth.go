@@ -1,6 +1,9 @@
 package contracts
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Authenticatable is the interface that user models must implement
 // to work with the auth system. Mirrors AdonisJS's User model requirements.
@@ -84,4 +87,14 @@ type AuthManagerContract interface {
 
 	// DefaultGuard returns the default guard.
 	DefaultGuard() GuardContract
+}
+
+// BlacklistContract defines the interface for token blacklisting.
+// Used to invalidate stateless tokens like JWTs upon logout.
+type BlacklistContract interface {
+	// Add adds a token to the blacklist with an expiry.
+	Add(ctx context.Context, token string, expiration time.Duration) error
+
+	// Has checks if a token is in the blacklist.
+	Has(ctx context.Context, token string) (bool, error)
 }

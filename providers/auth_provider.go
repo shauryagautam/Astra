@@ -45,6 +45,13 @@ func (p *AuthProvider) Register() error {
 	})
 	p.App.Alias("TokenStore", "Adonis/Core/TokenStore")
 
+	// Register the Blacklist service
+	p.App.Singleton("Adonis/Core/Blacklist", func(c contracts.ContainerContract) (any, error) {
+		redis := c.Use("Redis").(contracts.RedisContract).Connection("local")
+		return auth.NewRedisBlacklist(redis), nil
+	})
+	p.App.Alias("Blacklist", "Adonis/Core/Blacklist")
+
 	return nil
 }
 
@@ -59,11 +66,12 @@ func (p *AuthProvider) Boot() error {
 
 	// Create JWT guard (requires a UserProvider to be registered by the app)
 	// For now, register a placeholder that the user's app will replace
+	blacklist := p.App.Use("Blacklist").(contracts.BlacklistContract)
 	jwtGuard := auth.NewJWTGuard(auth.JWTConfig{
 		Secret: jwtSecret,
 		Expiry: jwtExpiry,
 		Issuer: "adonis",
-	}, nil) // User provides their own UserProvider
+	}, nil, blacklist) // User provides their own UserProvider
 
 	oatGuard := auth.NewOATGuard(jwtExpiry, tokenStore, nil)
 

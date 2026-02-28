@@ -48,18 +48,19 @@ type JWTConfig struct {
 	Issuer string
 }
 
-// JWTGuard implements JWT-based authentication.
 type JWTGuard struct {
-	config   JWTConfig
-	provider contracts.UserProviderContract
-	user     contracts.Authenticatable
+	config    JWTConfig
+	provider  contracts.UserProviderContract
+	blacklist contracts.BlacklistContract
+	user      contracts.Authenticatable
 }
 
 // NewJWTGuard creates a new JWT guard.
-func NewJWTGuard(config JWTConfig, provider contracts.UserProviderContract) *JWTGuard {
+func NewJWTGuard(config JWTConfig, provider contracts.UserProviderContract, blacklist contracts.BlacklistContract) *JWTGuard {
 	return &JWTGuard{
-		config:   config,
-		provider: provider,
+		config:    config,
+		provider:  provider,
+		blacklist: blacklist,
 	}
 }
 
@@ -129,6 +130,14 @@ func (g *JWTGuard) Authenticate(ctx contracts.HttpContextContract) (contracts.Au
 		return nil, ErrInvalidToken
 	}
 
+	// Check if token is blacklisted
+	if g.blacklist != nil {
+		blacklisted, err := g.blacklist.Has(ctx.Context(), tokenString)
+		if err != nil || blacklisted {
+			return nil, ErrInvalidToken
+		}
+	}
+
 	user, err := g.provider.FindById(ctx.Context(), sub)
 	if err != nil {
 		return nil, ErrNotAuthenticated
@@ -145,9 +154,26 @@ func (g *JWTGuard) Check(ctx contracts.HttpContextContract) bool {
 	return err == nil
 }
 
-// Logout is a no-op for JWT (stateless).
-// To invalidate JWTs, use a token blacklist or short expiry.
+// Logout invalidates the JWT by adding it to the blacklist.
 func (g *JWTGuard) Logout(ctx contracts.HttpContextContract) error {
+	tokenString := extractBearerToken(ctx)
+	if tokenString == "" {
+		return nil
+	}
+
+	// Calculate remaining TTL
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err == nil {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if exp, ok := claims["exp"].(float64); ok {
+				remaining := time.Until(time.Unix(int64(exp), 0))
+				if remaining > 0 && g.blacklist != nil {
+					_ = g.blacklist.Add(ctx.Context(), tokenString, remaining)
+				}
+			}
+		}
+	}
+
 	g.user = nil
 	return nil
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
 	"time"
 )
 
@@ -14,9 +12,7 @@ import (
 func (q *RedisQueue) Process(queueName string) error {
 	ctx := context.Background()
 	queueKey := q.prefix + queueName
-	logger := log.New(os.Stdout, "[adonis:queue] ", log.LstdFlags)
-
-	logger.Printf("Worker started for queue: %s", queueName)
+	q.logger.Printf("Worker started for queue: %s", queueName)
 
 	// Start a goroutine to handle delayed jobs
 	go q.pollDelayedJobs(ctx, queueName)
@@ -31,7 +27,7 @@ func (q *RedisQueue) Process(queueName string) error {
 			if err.Error() == "redis: nil" {
 				continue // Timeout, no jobs
 			}
-			logger.Printf("Redis error: %v", err)
+			q.logger.Printf("Redis error: %v", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -43,25 +39,45 @@ func (q *RedisQueue) Process(queueName string) error {
 
 		var payload JobPayload
 		if err := json.Unmarshal([]byte(items[1]), &payload); err != nil {
-			logger.Printf("Failed to unmarshal job payload: %v", err)
+			q.logger.Printf("Failed to unmarshal job payload: %v", err)
 			continue
 		}
 
 		// Execute job
 		handler, ok := q.registry.Get(payload.Name)
 		if !ok {
-			logger.Printf("No handler registered for job: %s", payload.Name)
+			q.logger.Printf("No handler registered for job: %s", payload.Name)
 			continue
 		}
 
-		logger.Printf("Processing job: %s", payload.Name)
+		q.logger.Printf("Processing job: %s", payload.Name)
 		start := time.Now()
 
 		if err := handler(payload.Data); err != nil {
-			logger.Printf("Job '%s' failed: %v", payload.Name, err)
-			// Simple retry logic could be added here
+			q.logger.Printf("Job '%s' failed: %v", payload.Name, err)
+
+			// Increment attempts
+			payload.Attempts++
+
+			if payload.Attempts < payload.MaxAttempts {
+				delay := payload.Backoff
+				if delay == 0 {
+					delay = 5 // Default backoff if none specified
+				}
+
+				q.logger.Printf("Retrying job '%s' (Attempt %d/%d) in %d seconds",
+					payload.Name, payload.Attempts+1, payload.MaxAttempts, delay)
+
+				// Re-marshal and push to delayed queue
+				payloadBytes, _ := json.Marshal(payload)
+				executeAt := float64(time.Now().Add(time.Duration(delay) * time.Second).Unix())
+				_ = q.redis.ZAdd(ctx, q.prefix+"delayed", executeAt, payloadBytes)
+			} else {
+				q.logger.Printf("Job '%s' failed after %d attempts. Moving to failed queue (not implemented yet).",
+					payload.Name, payload.MaxAttempts)
+			}
 		} else {
-			logger.Printf("Job '%s' finished in %s", payload.Name, time.Since(start))
+			q.logger.Printf("Job '%s' finished in %s", payload.Name, time.Since(start))
 		}
 	}
 }
@@ -87,12 +103,14 @@ func (q *RedisQueue) pollDelayedJobs(ctx context.Context, targetQueue string) {
 				continue
 			}
 
-			for _, jobBody := range jobs {
-				// Move to main queue
-				// We don't have pipeline in our contract yet, so we'll do individual operations.
-				// This is fine for now as it's a internal background process.
-				if err := q.redis.LPush(ctx, targetKey, jobBody); err == nil {
-					_ = q.redis.ZRem(ctx, delayedKey, jobBody)
+			if len(jobs) > 0 {
+				pipe := q.redis.Pipeline()
+				for _, jobBody := range jobs {
+					pipe.LPush(ctx, targetKey, jobBody)
+					pipe.ZRem(ctx, delayedKey, jobBody)
+				}
+				if err := pipe.Exec(ctx); err != nil {
+					q.logger.Printf("Pipeline execution failed in delayed poller: %v", err)
 				}
 			}
 		}

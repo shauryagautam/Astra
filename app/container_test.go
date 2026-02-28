@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/shaurya/adonis/contracts"
@@ -159,5 +160,71 @@ func TestContainerWithBindings(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("WithBindings returned error: %v", err)
+	}
+}
+
+type mockService interface {
+	Do() string
+}
+
+type concreteService struct{}
+
+func (s *concreteService) Do() string { return "done" }
+
+func TestContainerCall(t *testing.T) {
+	c := NewContainer()
+
+	// Register a type for injection
+	var serviceInterface *mockService
+	c.RegisterType(serviceInterface, "service")
+	c.Singleton("service", func(container contracts.ContainerContract) (any, error) {
+		return &concreteService{}, nil
+	})
+
+	// 1. Test auto-injection of registered type
+	results, err := c.Call(func(s mockService) string {
+		return s.Do()
+	})
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+	if results[0].(string) != "done" {
+		t.Errorf("Expected 'done', got '%v'", results[0])
+	}
+
+	// 2. Test mixed auto-injection and explicit args
+	results, err = c.Call(func(s mockService, name string, age int) string {
+		return fmt.Sprintf("%s-%s-%d", s.Do(), name, age)
+	}, "adonis", 5)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+	if results[0].(string) != "done-adonis-5" {
+		t.Errorf("Expected 'done-adonis-5', got '%v'", results[0])
+	}
+}
+
+func TestContainerRegisterType(t *testing.T) {
+	c := NewContainer()
+
+	// Register by instance
+	c.RegisterType((*mockService)(nil), "mock")
+
+	// Inject and verify
+	c.Singleton("mock", func(container contracts.ContainerContract) (any, error) {
+		return &concreteService{}, nil
+	})
+
+	res, _ := c.Call(func(m mockService) string { return m.Do() })
+	if res[0].(string) != "done" {
+		t.Errorf("RegisterType failed")
+	}
+}
+
+func TestContainerCallErrorOnUnresolvable(t *testing.T) {
+	c := NewContainer()
+	_, err := c.Call(func(s mockService) {})
+	if err == nil {
+		t.Fatal("Call should fail when dependency cannot be resolved")
 	}
 }

@@ -264,7 +264,34 @@ func (c *Connection) Ping(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
 }
 
+func (c *Connection) Pipeline() contracts.RedisPipeContract {
+	return &Pipe{pipe: c.client.Pipeline()}
+}
+
 var _ contracts.RedisConnectionContract = (*Connection)(nil)
+
+// ══════════════════════════════════════════════════════════════════════
+// Pipe — wraps go-redis pipeliner
+// ══════════════════════════════════════════════════════════════════════
+
+type Pipe struct {
+	pipe goredis.Pipeliner
+}
+
+func (p *Pipe) LPush(ctx context.Context, key string, values ...any) {
+	p.pipe.LPush(ctx, key, values...)
+}
+
+func (p *Pipe) ZRem(ctx context.Context, key string, members ...any) {
+	p.pipe.ZRem(ctx, key, members...)
+}
+
+func (p *Pipe) Exec(ctx context.Context) error {
+	_, err := p.pipe.Exec(ctx)
+	return err
+}
+
+var _ contracts.RedisPipeContract = (*Pipe)(nil)
 
 // ══════════════════════════════════════════════════════════════════════
 // PubSub

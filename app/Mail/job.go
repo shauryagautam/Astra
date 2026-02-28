@@ -29,6 +29,14 @@ func (j *MailJob) DisplayName() string {
 	return "adonis:mail"
 }
 
+func (j *MailJob) Tries() int {
+	return 3
+}
+
+func (j *MailJob) Backoff() int {
+	return 10
+}
+
 // HandleMailJob is the raw handler for the queue system.
 func HandleMailJob(data []byte, manager contracts.MailerContract) error {
 	var job MailJob
