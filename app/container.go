@@ -76,28 +76,35 @@ func (c *Container) Make(namespace string) (any, error) {
 		return instance, nil
 	}
 
-	// Check for singleton factory (needs upgrade to write lock)
+	// Check for singleton factory
 	if factory, ok := c.singletons[resolved]; ok {
 		c.mu.RUnlock()
-		c.mu.Lock()
-		// Double-check after acquiring write lock
-		if instance, ok := c.instances[resolved]; ok {
-			c.mu.Unlock()
-			return instance, nil
-		}
+
+		// IMPORTANT: We release the lock BEFORE calling the factory
+		// to avoid deadlocks if the factory calls Make/Use.
+		// However, we must ensure we don't resolve the same singleton multiple times
+		// needlessly in high-concurrency scenarios.
 		instance, err := factory(c)
 		if err != nil {
-			c.mu.Unlock()
 			return nil, fmt.Errorf("failed to resolve singleton '%s': %w", namespace, err)
 		}
+
+		c.mu.Lock()
+		defer c.mu.Unlock()
+
+		// Double-check if someone else resolved it while we were busy
+		if existing, ok := c.instances[resolved]; ok {
+			return existing, nil
+		}
+
 		c.instances[resolved] = instance
-		c.mu.Unlock()
 		return instance, nil
 	}
 
 	// Check for regular binding
 	if factory, ok := c.bindings[resolved]; ok {
 		c.mu.RUnlock()
+		// Releasing lock before calling factory for bindings too
 		instance, err := factory(c)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve binding '%s': %w", namespace, err)

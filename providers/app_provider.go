@@ -3,7 +3,9 @@ package providers
 import (
 	"log"
 	"os"
+	"strconv"
 
+	"github.com/shaurya/adonis/config"
 	"github.com/shaurya/adonis/contracts"
 )
 
@@ -23,6 +25,9 @@ func NewAppProvider(app contracts.ApplicationContract) *AppProvider {
 
 // Register binds core services into the container.
 func (p *AppProvider) Register() error {
+	// Load .env file on startup
+	config.LoadEnv(".env") //nolint:errcheck
+
 	// Register the Logger
 	p.App.Singleton("Adonis/Core/Logger", func(c contracts.ContainerContract) (any, error) {
 		return log.New(os.Stdout, "[adonis] ", log.LstdFlags), nil
@@ -78,4 +83,42 @@ func (e *EnvManager) GetOrFail(key string) string {
 		panic("Missing required environment variable: " + key)
 	}
 	return val
+}
+
+// GetInt returns an environment variable as an integer.
+func (e *EnvManager) GetInt(key string, defaultValue ...int) int {
+	val := e.Get(key)
+	if val == "" {
+		if len(defaultValue) > 0 {
+			return defaultValue[0]
+		}
+		return 0
+	}
+	n, err := strconv.Atoi(val)
+	if err != nil {
+		if len(defaultValue) > 0 {
+			return defaultValue[0]
+		}
+		return 0
+	}
+	return n
+}
+
+// GetBool returns an environment variable as a boolean.
+func (e *EnvManager) GetBool(key string, defaultValue ...bool) bool {
+	val := e.Get(key)
+	if val == "" {
+		if len(defaultValue) > 0 {
+			return defaultValue[0]
+		}
+		return false
+	}
+	b, err := strconv.ParseBool(val)
+	if err != nil {
+		if len(defaultValue) > 0 {
+			return defaultValue[0]
+		}
+		return false
+	}
+	return b
 }

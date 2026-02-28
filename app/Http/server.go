@@ -19,6 +19,7 @@ type Server struct {
 	router           contracts.RouterContract
 	globalMiddleware []contracts.MiddlewareFunc
 	namedMiddleware  map[string]contracts.MiddlewareFunc
+	exceptionHandler contracts.ExceptionHandlerContract
 	httpServer       *http.Server
 	logger           *log.Logger
 }
@@ -97,8 +98,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	chain := buildMiddlewareChain(ctx, allMiddleware, handler)
 
 	if err := chain(); err != nil {
-		// If the response hasn't been committed, send an error
-		if !ctx.Response().IsCommitted() {
+		// Use centralized exception handler if available
+		s.mu.RLock()
+		exHandler := s.exceptionHandler
+		s.mu.RUnlock()
+
+		if exHandler != nil {
+			exHandler.Handle(ctx, err)
+		} else if !ctx.Response().IsCommitted() {
 			ctx.Response().Status(http.StatusInternalServerError).Json(map[string]any{ //nolint:errcheck
 				"error":   "Internal Server Error",
 				"message": err.Error(),
@@ -126,6 +133,13 @@ func buildMiddlewareChain(ctx *HttpContext, middleware []contracts.MiddlewareFun
 	}
 
 	return current
+}
+
+// SetExceptionHandler sets the centralized exception handler.
+func (s *Server) SetExceptionHandler(handler contracts.ExceptionHandlerContract) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.exceptionHandler = handler
 }
 
 // Start begins listening for HTTP requests on the given address.
