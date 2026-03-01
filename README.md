@@ -3,13 +3,13 @@
 
   **The Elegant, Powerful, and Production-Ready Web Framework for Go.**
 
-  <p>
-    [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go)](https://go.dev)
-    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-    [![Documentation](https://img.shields.io/badge/Docs-Starlight-8A2BE2?style=for-the-badge)](https://github.com/shaurya/astra/tree/main/docs)
-    [![DB: PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=for-the-badge&logo=postgresql)](https://postgresql.org/)
-    [![Cache: Redis](https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis)](https://redis.io/)
-  </p>
+
+  [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go)](https://go.dev)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+  [![Documentation](https://img.shields.io/badge/Docs-Starlight-8A2BE2?style=for-the-badge)](https://github.com/shaurya/astra/tree/main/docs)
+  [![DB: PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=for-the-badge&logo=postgresql)](https://postgresql.org/)
+  [![Cache: Redis](https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis)](https://redis.io/)
+
 
   <p>
     <em>Build elite API backends in Go with the expressive developer experience of Laravel and AdonisJS, powered by statically typed performance.</em>
