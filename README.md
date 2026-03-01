@@ -1,357 +1,182 @@
 <div align="center">
+  <img src="docs/src/assets/houston.webp" alt="Astra Framework" width="120" />
 
-# ⚡ Astra
+  # ⚡ Astra
 
-**The Go Framework — Elegant, Powerful, Production-Ready**
+  **The Elegant, Powerful, and Production-Ready Web Framework for Go.**
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://go.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+  <p>
+    [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go)](https://go.dev)
+    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+    [![Documentation](https://img.shields.io/badge/Docs-Starlight-8A2BE2?style=for-the-badge)](https://github.com/shaurya/astra/tree/main/docs)
+    [![DB: PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=for-the-badge&logo=postgresql)](https://postgresql.org/)
+    [![Cache: Redis](https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis)](https://redis.io/)
+  </p>
 
-*Build beautiful API backends in Go with the developer experience you love from AstraJS*
-
+  <p>
+    <em>Build elite API backends in Go with the expressive developer experience of Laravel and AdonisJS, powered by statically typed performance.</em>
+  </p>
 </div>
 
 ---
 
-## ✨ Features
+## 🌟 Why Astra?
 
-| Feature | Description |
-|---------|-------------|
-| 🏗️ **IoC Container** | Dependency injection with bind, singleton, alias, and fakes for testing |
-| 🛣️ **Routing** | Dynamic routes, groups, resources, named routes, middleware |
-| 🛡️ **Middleware** | CORS, Logger, Security Headers, Recovery, Auth/Guest/SilentAuth |
-| 🗄️ **Lucid ORM** | Generic models, chainable query builder, hooks, relationships, pagination |
-| 📦 **Migrations** | Run, rollback, reset, refresh, status tracking |
-| ✅ **Validation** | Schema-based validation with 20+ built-in rules and fluent API |
-| 🔐 **Authentication** | JWT + Opaque Access Token (OAT) guards with pluggable user providers |
-| 🔑 **Hashing** | Argon2id + Bcrypt drivers with auto-detection and rehash checks |
-| 🔴 **Redis** | Multi-connection manager, caching, rate limiting, pub/sub, sessions |
-| ⚡ **Error Handling** | Centralized exception handler with HttpException and stack traces |
-| ⚙️ **Configuration** | `.env` file parser with typed getters (string, int, bool, duration) |
-| 🧪 **Testing** | TestApp, TestRequest, TestResponse assertions, mock HttpContext |
-| 🖥️ **Ace CLI** | Scaffold controllers, models, migrations, middleware, providers |
-| 🏭 **Providers** | Service provider architecture for modular application design |
+Astra is not just another routing library; it is a **batteries-included, opinionated ecosystem** designed to solve the complexities of enterprise web development in Go. It embraces pattern-driven architecture, moving away from sparse micro-frameworks into a structured, highly productive environment.
+
+*   **🔋 Batteries Included**: IoC Container, ORM, Auth guards, Router, flexible Schema Validator, Job Queues, and multi-node Redis clusters out-of-the-box.
+*   **🏭 Pattern-Driven**: Predictable directory structures, Service Providers, and Middlewares built symmetrically to proven MVC standards.
+*   **🛡️ Production Hardened**: Neon Serverless connection pooling, Atomic Lua Rate Limiting, and impenetrable CSP/HSTS security headers enabled by default.
+*   **🏎️ Developer Experience (DX)**: Zero-configuration JSON logging (`slog`), the Ace scaffolding CLI, and fluent query builders allow you to focus on business logic unconditionally.
 
 ---
 
-## 📦 Installation
+## 📦 Requirements & Installation
+
+Astra requires **Go 1.22+**.
 
 ```bash
-# Clone the framework
+# 1. Clone the starting scaffolding
 git clone https://github.com/shaurya/astra.git my-app
 cd my-app
 
-# Install dependencies
+# 2. Fetch the Go modules
 go mod tidy
 
-# Start the development server
-go run server.go
+# 3. Configure your local environment
+cp .env.example .env
+
+# 4. Boot the Astra server!
+go run cmd/astra/main.go serve --watch
 ```
 
-Your server is now running at `http://localhost:3333` 🚀
+Server booted successfully? Visit `http://localhost:3333/health` to view your infrastructure liveness payload.
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ The Architectural Tour
 
-### 1. Define Routes (`start/routes.go`)
+### 1. Advanced Routing Engine
+Astra’s router is highly expressive, supporting nesting, middleware application, parameter bindings, and instant JSON responses.
 
 ```go
 func RegisterRoutes(app contracts.ApplicationContract) {
     Route := app.Use("Route").(*astraHttp.Router)
 
-    Route.Get("/", func(ctx contracts.HttpContextContract) error {
-        return ctx.Response().Json(map[string]any{
-            "message": "Hello, World!",
-        })
+    // A simple endpoint
+    Route.Get("/ping", func(ctx contracts.HttpContextContract) error {
+        return ctx.Response().Json(map[string]any{"status": "alive"})
     })
 
-    // Grouped routes with prefix and middleware
+    // Powerful Controller routing with Middleware
     Route.Group(func(api contracts.RouterContract) {
-        api.Get("/users", usersController.Index)
-        api.Post("/users", usersController.Store)
-        api.Get("/users/:id", usersController.Show)
-    }).Prefix("/api/v1").Middleware("auth")
-
-    // Resource routing (auto-generates CRUD routes)
-    Route.Resource("posts", &PostsController{})
+        api.Get("/profile", UsersController.Profile)
+        api.Post("/settings", UsersController.UpdateSettings)
+    }).Prefix("/api/v1").Middleware("auth") // The Auth Guard secures this group
+    
+    // Auto-maps typical RESTful methods (Index, Show, Store, Update, Destroy) 
+    Route.Resource("articles", &ArticlesController{})
 }
 ```
 
-### 2. Validate Input
+### 2. Validation Schema Builder
+Never let bad data touch your controllers. The Astra validator acts as an impenetrable shield, enforcing strict schema compliance with fluent chaining.
 
 ```go
-import "github.com/shaurya/astra/app/Validator"
-
-func CreateUser(ctx contracts.HttpContextContract) error {
+func (c *UsersController) Store(ctx contracts.HttpContextContract) error {
     body := ctx.Request().All()
 
     v := validator.New()
     result := v.Validate(body, []contracts.FieldSchema{
-        validator.String("name").Required().MinLength(2).MaxLength(100).Schema(),
+        validator.String("username").Required().MinLength(3).AlphaNum().Schema(),
         validator.String("email").Required().Email().Schema(),
-        validator.Number("age").Required().Min(18).Max(120).Schema(),
-        validator.String("role").Required().In("admin", "user", "guest").Schema(),
+        validator.Number("age").Min(18).Max(99).Schema(),
+        validator.String("role").In("admin", "editor", "subscriber").Schema(),
     })
 
     if result.HasErrors() {
+        // Automatically returns a 422 Unprocessable Entity with error mapped fields
         return exceptions.UnprocessableEntity("Validation failed", result.Errors)
     }
-
-    // Process valid data...
+    
+    // Resume execution...
 }
 ```
 
-### 3. Handle Errors
+### 3. The Lucid ORM
+Astra ships with a deeply integrated ORM abstraction mapped onto GORM, but supercharged with connection pooling optimized seamlessly for serverless databases (Neon) and enterprise limits.
 
 ```go
-import "github.com/shaurya/astra/app/Exceptions"
+// Fetch user with Primary Key
+user, _ := models.Find[User](db, 1)
 
-// Return structured errors from handlers
-return exceptions.NotFound("User not found")
-return exceptions.Unauthorized("Invalid credentials")
-return exceptions.UnprocessableEntity("Validation failed", errors)
-
-// Wire the centralized handler to the server
-server.SetExceptionHandler(exceptions.NewHandler(debugMode))
-```
-
-### 4. Use the ORM
-
-```go
-// Find a record
-user, err := models.Find[User](db, 1)
-
-// Query with the fluent builder
-users, err := models.Query[User](db).
-    Where("active = ?", true).
+// Fluent Builder syntax
+activeAdmins, _ := models.Query[User](db).
+    Where("role = ?", "admin").
+    Where("status = ?", "active").
     OrderBy("created_at", "desc").
-    Paginate(1, 20)
+    Paginate(1, 20) // Automatically handles offset and limit
+    
+// Persisting records
+newUser := &User{Email: "hello@astra.dev"}
+models.Create(db, newUser)
+```
 
-// Create a record
-user := &User{Name: "Alice", Email: "alice@example.com"}
-err := models.Create(db, user)
+### 4. Enterprise Services (Redis & Queues)
+Scaling a monolith? Astra has your back. Redis is natively tied to universally clustered connections.
+
+```go
+// 🔴 Redis: Atomic increments and caching
+cache := app.Use("Redis").(*redis.RedisManager).Connection("local")
+cache.Set(ctx, "last_login", time.Now().Unix(), time.Hour)
+
+// 📬 Job Queues: Push background tasks off the main thread
+Queue := app.Use("Queue").(contracts.QueueContract)
+Queue.Push(&ProcessImageJob{ImageID: 1045})
+Queue.Later(120, &SendWelcomeEmailJob{UserID: 1}) // Executes exactly 120s later
 ```
 
 ---
 
-## 📁 Project Structure
+## 🖥️ The Ace CLI Commands
 
-```
-├── app/
-│   ├── Auth/            # JWT & OAT authentication guards
-│   ├── Controllers/     # HTTP controllers
-│   ├── Exceptions/      # Centralized error handler
-│   ├── Hash/            # Argon2id & Bcrypt hashing
-│   ├── Http/            # Router, Server, Context, Middleware
-│   ├── Middleware/       # Auth, Guest, SilentAuth middleware
-│   ├── Models/          # Lucid ORM (BaseModel, QueryBuilder, Hooks)
-│   ├── Redis/           # Redis manager, Cache, RateLimiter, Sessions
-│   └── Validator/       # Schema validation engine
-├── cmd/astra/          # Ace CLI commands
-├── config/              # App, Database, CORS, Auth, Redis, Env config
-├── contracts/           # Interface definitions (IoC, HTTP, ORM, Auth, etc.)
-├── database/            # Migrations & Seeders
-├── examples/api/        # Example REST API
-├── providers/           # Service providers (App, Route, Database, Auth, Redis)
-├── start/               # Route & middleware registration
-├── testing/             # Test utilities
-├── server.go            # Application entry point
-├── .env.example         # Environment configuration template
-└── LICENSE              # MIT License
-```
-
----
-
-## 📡 Advanced Features
-
-### 1. Event System (`contracts/event.go`, `app/Events/dispatcher.go`)
-Synchronous and asynchronous event dispatching logic.
-```go
-Event.On("user:registered", func(data any) error {
-    user := data.(*User)
-    fmt.Printf("Welcome %s!\n", user.Name)
-    return nil
-})
-
-// Emit event
-Event.Emit("user:registered", user)
-```
-
-### 2. Queue / Job System (`contracts/queue.go`, `app/Queue/queue.go`)
-Redis-backed background job processing with delayed jobs and worker support.
-```go
-// Push job to queue
-Queue.Push(&SendEmailJob{Email: "user@example.com"})
-
-// Push with delay (in seconds)
-Queue.Later(60, &ReminderJob{Id: 123})
-```
-
-### 3. File Storage / Drive (`contracts/drive.go`, `app/Drive/drive.go`)
-Storage abstraction with support for multiple disks (currently Local).
-```go
-// Save file
-Drive.Put("avatars/user_1.png", contents)
-
-// Save stream
-Drive.PutStream("docs/report.pdf", reader)
-
-// Get URL
-url := Drive.Url("avatars/user_1.png")
-```
-
-### 4. Mail System (`contracts/mail.go`, `app/Mail/smtp.go`)
-Fluent API for sending emails with support for background queuing.
-```go
-Mail.Send(ctx, contracts.MailMessage{
-    To: []string{"user@example.com"},
-    Subject: "Welcome!",
-    HtmlView: "<h1>Hello!</h1>",
-})
-
-// Send in background via Queue system
-Mail.SendLater(ctx, message)
-```
-
-### 5. WebSocket Support (`contracts/ws.go`, `app/Ws/server.go`)
-Hub-based WebSocket server with room management and broadcasting.
-```go
-Ws.OnConnect(func(client contracts.WsClientContract) {
-    client.Join("chat:room_1")
-    client.Send("welcome", "Hello!")
-})
-
-// Broadcast to room
-Ws.BroadcastToRoom("chat:room_1", "new_message", msg)
-```
-
----
-
-## 🖥️ CLI Commands
+Astra ships with a built-in scaffolding CLI allowing you to build foundational logic without repetitive typing.
 
 ```bash
-# Development
-go run cmd/astra/main.go serve            # Start server
-go run cmd/astra/main.go serve --watch     # Start with hot-reload (Air)
+# Create a new HTTP Controller natively
+go run cmd/astra/main.go make:controller AuthController
 
-# Scaffolding
-go run cmd/astra/main.go make:controller UsersController
-go run cmd/astra/main.go make:controller PostsController --resource
-go run cmd/astra/main.go make:model User --migration
-go run cmd/astra/main.go make:migration create_posts_table
-go run cmd/astra/main.go make:middleware RateLimiter
-go run cmd/astra/main.go make:provider PaymentProvider
+# Create a generic model with its associated database migration schema
+go run cmd/astra/main.go make:model Payment --migration
 
-# Database
+# Push modifications to PostgreSQL
 go run cmd/astra/main.go migration:run
-go run cmd/astra/main.go migration:rollback
-go run cmd/astra/main.go migration:status
-go run cmd/astra/main.go migration:reset
+
+# Refresh the schema database completely for testing
 go run cmd/astra/main.go migration:refresh
-go run cmd/astra/main.go db:seed
 ```
 
 ---
 
-## ⚙️ Configuration
+## 🛡️ Uncompromising Security
 
-Copy `.env.example` to `.env` and customize:
+Astra takes the burden of securing your API off your shoulders. 
 
-```bash
-cp .env.example .env
-```
-
-Key configuration variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | Astra | Application name |
-| `APP_ENV` | development | Environment (development/production) |
-| `APP_KEY` | — | Secret key for JWT signing |
-| `PORT` | 3333 | HTTP server port |
-| `DB_HOST` | 127.0.0.1 | PostgreSQL host |
-| `DB_DATABASE` | astra_dev | Database name |
-| `REDIS_HOST` | 127.0.0.1 | Redis host |
-| `HASH_DRIVER` | argon2 | Hash driver (argon2/bcrypt) |
+*   **Atomic Rate Limiting**: Redis integrations use server-side `Lua scripts` guaranteeing atomic IP sliding-window throttling. Auto-scaling Kubernetes pods will never cause a race-condition rate-limit bypass.
+*   **Security Headers Middleware**: Enforced default sets of `Strict-Transport-Security (HSTS)`, `X-Content-Type-Options: nosniff`, and extremely restrictive `Content-Security-Policy (CSP)` instructions mitigate XSS/code-injection natively.
+*   **Opaque Access Tokens (OAT)**: Fully stateless Hash drivers (`Argon2id // Bcrypt`) secure database-mapped API authentication effortlessly.
 
 ---
 
-## 🧪 Testing
+## 📚 Official Documentation
 
-```go
-import astratesting "github.com/shaurya/astra/testing"
+Explore the official documentation hub built specifically with Astro Starlight to read deep architectural guides on how to implement the IoC container, handle graceful websocket shutdowns, and manage multi-database setups.
 
-func TestUsersAPI(t *testing.T) {
-    app := astratesting.NewTestApp()
-    app.RegisterRoutes(func(router *astraHttp.Router) {
-        router.Get("/users", myHandler)
-    })
-
-    resp := app.Get("/users").Expect(t)
-    resp.AssertOk()
-    resp.AssertJson("data", expectedData)
-    resp.AssertJsonHasKey("data")
-
-    // POST with JSON body
-    resp = app.Post("/users").
-        WithJSON(map[string]string{"name": "Alice"}).
-        WithAuth("jwt-token").
-        Expect(t)
-    resp.AssertCreated()
-}
-```
-
-Run all tests:
-
-```bash
-go test ./... -v
-```
+Navigate to `/docs` locally to spin up the site, or view our interactive API references!
 
 ---
 
-## ✅ Validation Rules
-
-| Rule | Usage | Description |
-|------|-------|-------------|
-| `Required()` | `String("name").Required()` | Field must be present and non-empty |
-| `MinLength(n)` | `String("name").MinLength(3)` | Minimum string length |
-| `MaxLength(n)` | `String("name").MaxLength(100)` | Maximum string length |
-| `Min(n)` | `Number("age").Min(18)` | Minimum numeric value |
-| `Max(n)` | `Number("age").Max(120)` | Maximum numeric value |
-| `Email()` | `String("email").Email()` | Valid email format |
-| `URL()` | `String("website").URL()` | Valid URL format |
-| `UUID()` | `String("id").UUID()` | Valid UUID format |
-| `Alpha()` | `String("name").Alpha()` | Letters only |
-| `AlphaNum()` | `String("code").AlphaNum()` | Letters and numbers only |
-| `Numeric()` | `String("code").Numeric()` | Numeric characters only |
-| `In(...)` | `String("role").In("admin", "user")` | Value must be in list |
-| `NotIn(...)` | `String("role").NotIn("banned")` | Value must not be in list |
-| `Regex(pattern)` | `String("code").Regex("^[A-Z]+$")` | Match regex pattern |
-| `IP()` | `String("addr").IP()` | Valid IP address |
-| `Date()` | `String("dob").Date()` | Valid date format |
-| `Boolean()` | `Boolean("active").Required()` | Boolean value |
-| `Enum(...)` | `String("status").Enum("on", "off")` | Same as `In()` |
-| `Message(msg)` | `.Required().Message("Custom msg")` | Custom error message |
-
----
-
-## 🔐 Authentication
-
-```go
-// JWT Authentication
-guard := authManager.Use("jwt")
-token, err := guard.Attempt(ctx, map[string]any{
-    "email":    "user@example.com",
-    "password": "secret",
-})
-
-// Protect routes with auth middleware
-Route.Get("/dashboard", handler).Middleware("auth")
-```
-
----
-
-## 📄 License
-
-[MIT License](LICENSE) © 2026 Shaurya
+<div align="center">
+  <b>Architected with ❤️ by Shaurya and the Open Source Community.</b> <br/>
+  <i>Released under the MIT License.</i>
+</div>
