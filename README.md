@@ -2,12 +2,12 @@
 
 # ⚡ Astra
 
-**The Astra-inspired Go Framework — Elegant, Powerful, Production-Ready**
+**The Go Framework — Elegant, Powerful, Production-Ready**
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-*Build beautiful API backends in Go with the developer experience you love from Astra*
+*Build beautiful API backends in Go with the developer experience you love from AstraJS*
 
 </div>
 
