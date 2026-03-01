@@ -1,5 +1,5 @@
-// Package exceptions provides centralized error handling for Adonis Go.
-// Mirrors AdonisJS's ExceptionHandler in app/Exceptions/Handler.ts.
+// Package exceptions provides centralized error handling for Astra Go.
+// Mirrors Astra's ExceptionHandler in app/Exceptions/Handler.ts.
 //
 // Usage:
 //
@@ -20,7 +20,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // HttpException is an error with an HTTP status code and optional data.
@@ -125,7 +125,7 @@ type Handler struct {
 func NewHandler(debug bool) *Handler {
 	return &Handler{
 		debug:  debug,
-		logger: log.New(os.Stderr, "[adonis:error] ", log.LstdFlags),
+		logger: log.New(os.Stderr, "[astra:error] ", log.LstdFlags),
 	}
 }
 

@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Server is the HTTP server that ties together the router, middleware pipeline,
-// and request handling. Mirrors AdonisJS's Server class.
+// and request handling. Mirrors Astra's Server class.
 type Server struct {
 	mu               sync.RWMutex
 	router           contracts.RouterContract
@@ -29,7 +29,7 @@ func NewServer() *Server {
 	return &Server{
 		globalMiddleware: make([]contracts.MiddlewareFunc, 0),
 		namedMiddleware:  make(map[string]contracts.MiddlewareFunc),
-		logger:           log.New(os.Stdout, "[adonis:http] ", log.LstdFlags),
+		logger:           log.New(os.Stdout, "[astra:http] ", log.LstdFlags),
 	}
 }
 

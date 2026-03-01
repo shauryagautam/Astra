@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Cache provides a Redis-backed cache driver.
-// Mirrors AdonisJS's Cache module.
+// Mirrors Astra's Cache module.
 //
 // Usage:
 //
@@ -25,7 +25,7 @@ type Cache struct {
 // NewCache creates a new Redis-backed cache.
 func NewCache(conn contracts.RedisConnectionContract, prefix string) *Cache {
 	if prefix == "" {
-		prefix = "adonis:cache:"
+		prefix = "astra:cache:"
 	}
 	return &Cache{conn: conn, prefix: prefix}
 }
@@ -115,7 +115,7 @@ var _ contracts.CacheContract = (*Cache)(nil)
 // ══════════════════════════════════════════════════════════════════════
 // Rate Limiter
 // Uses Redis sliding window for rate limiting.
-// Mirrors AdonisJS's ThrottleMiddleware under the hood.
+// Mirrors Astra's ThrottleMiddleware under the hood.
 // ══════════════════════════════════════════════════════════════════════
 
 // RateLimiter provides Redis-backed rate limiting.
@@ -135,7 +135,7 @@ type RateLimiter struct {
 // NewRateLimiter creates a new Redis-backed rate limiter.
 func NewRateLimiter(conn contracts.RedisConnectionContract, prefix string) *RateLimiter {
 	if prefix == "" {
-		prefix = "adonis:ratelimit:"
+		prefix = "astra:ratelimit:"
 	}
 	return &RateLimiter{conn: conn, prefix: prefix}
 }
@@ -216,7 +216,7 @@ type SessionStore struct {
 func NewSessionStore(conn contracts.RedisConnectionContract, ttl time.Duration) *SessionStore {
 	return &SessionStore{
 		conn:   conn,
-		prefix: "adonis:session:",
+		prefix: "astra:session:",
 		ttl:    ttl,
 	}
 }
@@ -283,7 +283,7 @@ type TokenStore struct {
 func NewTokenStore(conn contracts.RedisConnectionContract) *TokenStore {
 	return &TokenStore{
 		conn:   conn,
-		prefix: "adonis:token:",
+		prefix: "astra:token:",
 	}
 }
 

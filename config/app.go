@@ -1,7 +1,7 @@
 package config
 
 // AppConfig holds the main application configuration.
-// Mirrors AdonisJS's config/app.ts.
+// Mirrors Astra's config/app.ts.
 type AppConfig struct {
 	// Name is the application name.
 	Name string
@@ -25,7 +25,7 @@ type AppConfig struct {
 // DefaultAppConfig returns sensible defaults.
 func DefaultAppConfig() AppConfig {
 	return AppConfig{
-		Name:        "Adonis",
+		Name:        "Astra",
 		Environment: "development",
 		Port:        3333,
 		Host:        "0.0.0.0",

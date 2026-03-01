@@ -11,7 +11,7 @@ const (
 
 // ServiceProviderContract defines the interface for Service Providers.
 // Service Providers are the central place for bootstrapping the application.
-// They replicate AdonisJS's ServiceProvider class with its lifecycle hooks.
+// They replicate Astra's ServiceProvider class with its lifecycle hooks.
 //
 // Lifecycle Order:
 //  1. Register() — Bind services into the container (no other providers booted yet)
@@ -21,31 +21,31 @@ const (
 type ServiceProviderContract interface {
 	// Register binds services into the container.
 	// Called before any other provider has booted.
-	// Mirrors: register() in AdonisJS providers
+	// Mirrors: register() in Astra providers
 	Register() error
 
 	// Boot is called after all providers have been registered.
 	// Safe to resolve bindings from other providers here.
-	// Mirrors: boot() in AdonisJS providers
+	// Mirrors: boot() in Astra providers
 	Boot() error
 
 	// Ready is called when the application is fully ready.
 	// For web: after HTTP server starts listening.
 	// For console: after command is ready to execute.
-	// Mirrors: ready() in AdonisJS providers
+	// Mirrors: ready() in Astra providers
 	Ready() error
 
 	// Shutdown is called during graceful shutdown.
 	// Clean up database connections, close Redis, flush queues, etc.
-	// Mirrors: shutdown() in AdonisJS providers
+	// Mirrors: shutdown() in Astra providers
 	Shutdown() error
 }
 
 // ApplicationContract defines the core application interface.
 // It embeds the IoC container and manages the application lifecycle.
-// This replicates AdonisJS's Application class.
+// This replicates Astra's Application class.
 type ApplicationContract interface {
-	// Embed the container — the application IS the container in AdonisJS.
+	// Embed the container — the application IS the container in Astra.
 	ContainerContract
 
 	// Environment returns the current application environment.

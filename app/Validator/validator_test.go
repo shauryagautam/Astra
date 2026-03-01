@@ -3,7 +3,7 @@ package validator
 import (
 	"testing"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func TestRequiredRule(t *testing.T) {

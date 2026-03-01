@@ -5,7 +5,7 @@ import (
 )
 
 // DriveContract defines the file storage interface.
-// Mirrors AdonisJS's @adonisjs/drive module.
+// Mirrors Astra's @astra/drive module.
 type DriveContract interface {
 	// Disk returns a named disk instance.
 	Disk(name string) DiskContract

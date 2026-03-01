@@ -68,7 +68,7 @@ type FieldSchema struct {
 }
 
 // ValidatorContract defines the validation engine interface.
-// Mirrors AdonisJS's @adonisjs/validator.
+// Mirrors Astra's @astra/validator.
 type ValidatorContract interface {
 	// Validate validates the given data against the schema.
 	Validate(data map[string]any, schema []FieldSchema) *ValidationResult

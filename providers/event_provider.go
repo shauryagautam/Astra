@@ -1,12 +1,12 @@
 package providers
 
 import (
-	events "github.com/shaurya/adonis/app/Events"
-	"github.com/shaurya/adonis/contracts"
+	events "github.com/shaurya/astra/app/Events"
+	"github.com/shaurya/astra/contracts"
 )
 
 // EventProvider registers the Event dispatcher into the container.
-// Mirrors AdonisJS's Event provider.
+// Mirrors Astra's Event provider.
 type EventProvider struct {
 	BaseProvider
 }
@@ -20,10 +20,10 @@ func NewEventProvider(app contracts.ApplicationContract) *EventProvider {
 
 // Register binds the Event dispatcher as a singleton.
 func (p *EventProvider) Register() error {
-	p.App.Singleton("Adonis/Core/Event", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Event", func(c contracts.ContainerContract) (any, error) {
 		return events.NewDispatcher(), nil
 	})
-	p.App.Alias("Event", "Adonis/Core/Event")
+	p.App.Alias("Event", "Astra/Core/Event")
 	return nil
 }
 

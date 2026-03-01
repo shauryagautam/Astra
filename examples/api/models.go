@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	models "github.com/shaurya/adonis/app/Models"
+	models "github.com/shaurya/astra/app/Models"
 )
 
 // User model

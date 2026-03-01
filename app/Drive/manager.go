@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // DriveManager manages multiple storage disks.

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Dispatcher implements the EventDispatcherContract.

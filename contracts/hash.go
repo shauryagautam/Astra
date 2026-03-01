@@ -1,7 +1,7 @@
 package contracts
 
 // HashDriverContract defines the interface for a hashing driver (Argon2, Bcrypt).
-// Mirrors AdonisJS's HashDriverContract.
+// Mirrors Astra's HashDriverContract.
 type HashDriverContract interface {
 	// Make hashes the given value.
 	// Mirrors: await Hash.make(value)
@@ -17,7 +17,7 @@ type HashDriverContract interface {
 
 // HashContract defines the Hash module interface.
 // Provides a unified API that delegates to the configured driver.
-// Mirrors AdonisJS's Hash module.
+// Mirrors Astra's Hash module.
 type HashContract interface {
 	HashDriverContract
 

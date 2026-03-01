@@ -1,12 +1,12 @@
 package providers
 
 import (
-	mail "github.com/shaurya/adonis/app/Mail"
-	"github.com/shaurya/adonis/contracts"
+	mail "github.com/shaurya/astra/app/Mail"
+	"github.com/shaurya/astra/contracts"
 )
 
 // MailProvider registers the Mail manager and job handlers into the container.
-// Mirrors AdonisJS's @adonisjs/mail provider.
+// Mirrors Astra's @astra/mail provider.
 type MailProvider struct {
 	BaseProvider
 }
@@ -20,7 +20,7 @@ func NewMailProvider(app contracts.ApplicationContract) *MailProvider {
 
 // Register binds the Mail manager as a singleton.
 func (p *MailProvider) Register() error {
-	p.App.Singleton("Adonis/Core/Mail", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Mail", func(c contracts.ContainerContract) (any, error) {
 		env := c.Use("Env").(*EnvManager)
 		queue, _ := c.Make("Queue")
 
@@ -45,7 +45,7 @@ func (p *MailProvider) Register() error {
 		return manager, nil
 	})
 
-	p.App.Alias("Mail", "Adonis/Core/Mail")
+	p.App.Alias("Mail", "Astra/Core/Mail")
 
 	return nil
 }
@@ -54,7 +54,7 @@ func (p *MailProvider) Register() error {
 func (p *MailProvider) Boot() error {
 	registry := p.App.Use("JobRegistry").(contracts.JobRegistry)
 
-	registry.Register("adonis:mail", func(data []byte) error {
+	registry.Register("astra:mail", func(data []byte) error {
 		manager := p.App.Use("Mail").(contracts.MailerContract)
 		return mail.HandleMailJob(data, manager)
 	})

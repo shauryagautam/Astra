@@ -1,5 +1,5 @@
-// Package validator provides a schema-based validation engine for Adonis Go.
-// Mirrors AdonisJS's @adonisjs/validator with a fluent schema builder API.
+// Package validator provides a schema-based validation engine for Astra Go.
+// Mirrors Astra's @astra/validator with a fluent schema builder API.
 //
 // Usage:
 //
@@ -27,7 +27,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Validator is the core validation engine.
@@ -70,7 +70,7 @@ func (v *Validator) Validate(data map[string]any, schema []contracts.FieldSchema
 var _ contracts.ValidatorContract = (*Validator)(nil)
 
 // applyRule dispatches to the appropriate rule checker.
-func applyRule(field string, value any, exists bool, rule contracts.FieldRule, fieldType string) error {
+func applyRule(field string, value any, exists bool, rule contracts.FieldRule, _ string) error {
 	switch rule.Name {
 	case "required":
 		return ruleRequired(field, value, exists)
@@ -268,12 +268,11 @@ func ruleNumeric(field string, value any, exists bool) error {
 	if !exists || value == nil {
 		return nil
 	}
-	switch value.(type) {
+	switch v := value.(type) {
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
 		return nil
 	case string:
-		s := value.(string)
-		for _, r := range s {
+		for _, r := range v {
 			if !unicode.IsDigit(r) && r != '.' && r != '-' {
 				return fmt.Errorf("%s must be numeric", field)
 			}
@@ -362,16 +361,15 @@ func ruleBoolean(field string, value any, exists bool) error {
 	if !exists || value == nil {
 		return nil
 	}
-	switch value.(type) {
+	switch v := value.(type) {
 	case bool:
 		return nil
 	case string:
-		s := strings.ToLower(value.(string))
+		s := strings.ToLower(v)
 		if s == "true" || s == "false" || s == "1" || s == "0" || s == "yes" || s == "no" {
 			return nil
 		}
 	case float64:
-		v := value.(float64)
 		if v == 0 || v == 1 {
 			return nil
 		}

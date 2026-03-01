@@ -7,19 +7,19 @@ import (
 
 // HandlerFunc is the signature for route handlers.
 // Receives the HttpContext and returns an error (nil on success).
-// Mirrors AdonisJS: async ({ request, response, auth }) => {}
+// Mirrors Astra: async ({ request, response, auth }) => {}
 type HandlerFunc func(ctx HttpContextContract) error
 
 // MiddlewareFunc is the signature for middleware functions.
 // Receives the context and a next function to call the next middleware.
-// Mirrors AdonisJS: async (ctx, next) => { await next() }
+// Mirrors Astra: async (ctx, next) => { await next() }
 type MiddlewareFunc func(ctx HttpContextContract, next func() error) error
 
 // HttpContextContract is the single object passed to every route handler
 // and middleware. It wraps the HTTP request/response and provides access
-// to all framework features. Replicates AdonisJS's HttpContextContract.
+// to all framework features. Replicates Astra's HttpContextContract.
 //
-// In AdonisJS: const { request, response, auth, params } = ctx
+// In Astra: const { request, response, auth, params } = ctx
 // In Go:       req := ctx.Request(); resp := ctx.Response()
 type HttpContextContract interface {
 	// Request returns the wrapped HTTP request object.
@@ -59,7 +59,7 @@ type HttpContextContract interface {
 }
 
 // RequestContract wraps the incoming HTTP request with convenience methods.
-// Mirrors AdonisJS's Request class.
+// Mirrors Astra's Request class.
 type RequestContract interface {
 	// Method returns the HTTP method (GET, POST, etc.).
 	Method() string
@@ -116,7 +116,7 @@ type RequestContract interface {
 }
 
 // ResponseContract wraps the HTTP response writer with convenience methods.
-// Mirrors AdonisJS's Response class.
+// Mirrors Astra's Response class.
 type ResponseContract interface {
 	// Status sets the HTTP status code for the response.
 	// Returns the response for chaining.
@@ -227,7 +227,7 @@ type RouteGroupContract interface {
 }
 
 // ResourceController defines the interface for RESTful resource controllers.
-// Mirrors AdonisJS's resource controller methods.
+// Mirrors Astra's resource controller methods.
 type ResourceController interface {
 	Index(ctx HttpContextContract) error
 	Store(ctx HttpContextContract) error
@@ -237,7 +237,7 @@ type ResourceController interface {
 }
 
 // RouterContract defines the routing API.
-// Mirrors AdonisJS's Route module with its fluid API.
+// Mirrors Astra's Route module with its fluid API.
 type RouterContract interface {
 	// Get registers a GET route.
 	// Mirrors: Route.get('/path', handler)

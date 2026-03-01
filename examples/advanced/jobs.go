@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func registerAdvancedJobs(app contracts.ApplicationContract) {

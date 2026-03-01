@@ -3,14 +3,14 @@ package providers
 import (
 	"time"
 
-	auth "github.com/shaurya/adonis/app/Auth"
-	hash "github.com/shaurya/adonis/app/Hash"
-	"github.com/shaurya/adonis/contracts"
+	auth "github.com/shaurya/astra/app/Auth"
+	hash "github.com/shaurya/astra/app/Hash"
+	"github.com/shaurya/astra/contracts"
 	"gorm.io/gorm"
 )
 
 // AuthProvider registers hash and auth services into the container.
-// Mirrors AdonisJS's AuthProvider.
+// Mirrors Astra's AuthProvider.
 type AuthProvider struct {
 	BaseProvider
 }
@@ -25,37 +25,37 @@ func NewAuthProvider(app contracts.ApplicationContract) *AuthProvider {
 // Register binds Hash and Auth into the container.
 func (p *AuthProvider) Register() error {
 	// Register the Hash manager
-	p.App.Singleton("Adonis/Core/Hash", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Hash", func(c contracts.ContainerContract) (any, error) {
 		env := c.Use("Env").(*EnvManager)
 		driver := env.Get("HASH_DRIVER", "argon2")
 		return hash.NewManager(driver, hash.DefaultArgon2Config(), hash.DefaultBcryptConfig()), nil
 	})
-	p.App.Alias("Hash", "Adonis/Core/Hash")
+	p.App.Alias("Hash", "Astra/Core/Hash")
 
 	// Register the Auth manager
-	p.App.Singleton("Adonis/Core/Auth", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Auth", func(c contracts.ContainerContract) (any, error) {
 		env := c.Use("Env").(*EnvManager)
 		defaultGuard := env.Get("AUTH_GUARD", "api")
 		return auth.NewAuthManager(defaultGuard), nil
 	})
-	p.App.Alias("Auth", "Adonis/Core/Auth")
+	p.App.Alias("Auth", "Astra/Core/Auth")
 
 	// Register the token store (Database-backed for production, Memory for development)
-	p.App.Singleton("Adonis/Core/TokenStore", func(c contracts.ContainerContract) (any, error) {
-		if c.HasBinding("Adonis/Lucid/Database") {
-			db := c.Use("Adonis/Lucid/Database").(*gorm.DB)
+	p.App.Singleton("Astra/Core/TokenStore", func(c contracts.ContainerContract) (any, error) {
+		if c.HasBinding("Astra/Lucid/Database") {
+			db := c.Use("Astra/Lucid/Database").(*gorm.DB)
 			return auth.NewDatabaseTokenStore(db), nil
 		}
 		return auth.NewMemoryTokenStore(), nil
 	})
-	p.App.Alias("TokenStore", "Adonis/Core/TokenStore")
+	p.App.Alias("TokenStore", "Astra/Core/TokenStore")
 
 	// Register the Blacklist service
-	p.App.Singleton("Adonis/Core/Blacklist", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Blacklist", func(c contracts.ContainerContract) (any, error) {
 		redis := c.Use("Redis").(contracts.RedisContract).Connection("local")
 		return auth.NewRedisBlacklist(redis), nil
 	})
-	p.App.Alias("Blacklist", "Adonis/Core/Blacklist")
+	p.App.Alias("Blacklist", "Astra/Core/Blacklist")
 
 	return nil
 }
@@ -75,7 +75,7 @@ func (p *AuthProvider) Boot() error {
 	jwtGuard := auth.NewJWTGuard(auth.JWTConfig{
 		Secret: jwtSecret,
 		Expiry: jwtExpiry,
-		Issuer: "adonis",
+		Issuer: "astra",
 	}, nil, blacklist) // User provides their own UserProvider
 
 	oatGuard := auth.NewOATGuard(jwtExpiry, tokenStore, nil)

@@ -3,8 +3,8 @@ package providers
 import (
 	"fmt"
 
-	"github.com/shaurya/adonis/contracts"
-	"github.com/shaurya/adonis/database"
+	"github.com/shaurya/astra/contracts"
+	"github.com/shaurya/astra/database"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -12,7 +12,7 @@ import (
 
 // DatabaseProvider registers the database connection, migration runner,
 // and seeder runner into the container.
-// Mirrors AdonisJS's DatabaseProvider.
+// Mirrors Astra's DatabaseProvider.
 type DatabaseProvider struct {
 	BaseProvider
 }
@@ -27,7 +27,7 @@ func NewDatabaseProvider(app contracts.ApplicationContract) *DatabaseProvider {
 // Register creates the GORM DB connection and binds it.
 func (p *DatabaseProvider) Register() error {
 	// Register the Database connection as a singleton
-	p.App.Singleton("Adonis/Lucid/Database", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Lucid/Database", func(c contracts.ContainerContract) (any, error) {
 		// Get DSN from config or env
 		env := c.Use("Env").(*EnvManager)
 		dsn := env.Get("DATABASE_URL", "")
@@ -36,7 +36,7 @@ func (p *DatabaseProvider) Register() error {
 			port := env.Get("DB_PORT", "5432")
 			user := env.Get("DB_USER", "postgres")
 			password := env.Get("DB_PASSWORD", "")
-			dbname := env.Get("DB_DATABASE", "adonis_dev")
+			dbname := env.Get("DB_DATABASE", "astra_dev")
 			sslmode := env.Get("DB_SSLMODE", "disable")
 			dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 				host, port, user, password, dbname, sslmode)
@@ -56,22 +56,22 @@ func (p *DatabaseProvider) Register() error {
 
 		return db, nil
 	})
-	p.App.Alias("Database", "Adonis/Lucid/Database")
-	p.App.Alias("DB", "Adonis/Lucid/Database")
+	p.App.Alias("Database", "Astra/Lucid/Database")
+	p.App.Alias("DB", "Astra/Lucid/Database")
 
 	// Register Migration Runner
-	p.App.Singleton("Adonis/Lucid/Migration", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Lucid/Migration", func(c contracts.ContainerContract) (any, error) {
 		db := c.Use("Database").(*gorm.DB)
 		return database.NewMigrationRunner(db), nil
 	})
-	p.App.Alias("Migration", "Adonis/Lucid/Migration")
+	p.App.Alias("Migration", "Astra/Lucid/Migration")
 
 	// Register Seeder Runner
-	p.App.Singleton("Adonis/Lucid/Seeder", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Lucid/Seeder", func(c contracts.ContainerContract) (any, error) {
 		db := c.Use("Database").(*gorm.DB)
 		return database.NewSeederRunner(db), nil
 	})
-	p.App.Alias("Seeder", "Adonis/Lucid/Seeder")
+	p.App.Alias("Seeder", "Astra/Lucid/Seeder")
 
 	return nil
 }

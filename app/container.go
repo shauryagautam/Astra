@@ -5,17 +5,17 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Container is the concrete implementation of the IoC Container.
-// It replicates @adonisjs/fold's Container class.
+// It replicates @astra/fold's Container class.
 //
-// Go Idiom Note: AdonisJS uses TypeScript's type system to automatically
+// Go Idiom Note: Astra uses TypeScript's type system to automatically
 // resolve constructor dependencies. Go lacks this capability, so we use
 // string-keyed registries with factory functions. Type assertions at the
 // call site recover concrete types. This trades compile-time safety for
-// the same runtime flexibility AdonisJS provides.
+// the same runtime flexibility Astra provides.
 type Container struct {
 	mu         sync.RWMutex
 	bindings   map[string]contracts.BindingFactory
@@ -129,7 +129,7 @@ func (c *Container) MustMake(namespace string) any {
 }
 
 // Use is an alias for MustMake — resolves a binding or panics.
-// Mirrors AdonisJS: const Route = use('Adonis/Src/Route')
+// Mirrors Astra: const Route = use('Astra/Src/Route')
 func (c *Container) Use(namespace string) any {
 	return c.MustMake(namespace)
 }
@@ -187,7 +187,7 @@ func (c *Container) RegisterType(kind any, namespace string) {
 }
 
 // Call resolves dependencies and calls the given function using reflection.
-// Mirrors AdonisJS's ability to inject dependencies into functions/controllers.
+// Mirrors Astra's ability to inject dependencies into functions/controllers.
 func (c *Container) Call(fn any, explicitArgs ...any) ([]any, error) {
 	val := reflect.ValueOf(fn)
 	if val.Kind() != reflect.Func {

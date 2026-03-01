@@ -6,12 +6,12 @@ import (
 	"os"
 	"sync"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
-// Application is the core of the Adonis framework.
+// Application is the core of the Astra framework.
 // It embeds the IoC Container and manages the complete application lifecycle.
-// Replicates AdonisJS's Application class.
+// Replicates Astra's Application class.
 type Application struct {
 	container *Container
 
@@ -32,17 +32,17 @@ func NewApplication(appRoot string) *Application {
 		container: NewContainer(),
 		appRoot:   appRoot,
 		version:   "1.0.0",
-		appName:   "Adonis",
+		appName:   "Astra",
 		env:       contracts.EnvWeb,
 		providers: make([]contracts.ServiceProviderContract, 0),
-		logger:    log.New(os.Stdout, "[adonis] ", log.LstdFlags),
+		logger:    log.New(os.Stdout, "[astra] ", log.LstdFlags),
 	}
 
 	// Self-register the application in the container
-	app.container.Singleton("Adonis/Core/Application", func(c contracts.ContainerContract) (any, error) {
+	app.container.Singleton("Astra/Core/Application", func(c contracts.ContainerContract) (any, error) {
 		return app, nil
 	})
-	app.container.Alias("app", "Adonis/Core/Application")
+	app.container.Alias("app", "Astra/Core/Application")
 
 	return app
 }

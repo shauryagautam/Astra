@@ -6,7 +6,7 @@ import (
 )
 
 // Authenticatable is the interface that user models must implement
-// to work with the auth system. Mirrors AdonisJS's User model requirements.
+// to work with the auth system. Mirrors Astra's User model requirements.
 type Authenticatable interface {
 	// GetAuthIdentifier returns the unique identifier (usually primary key).
 	GetAuthIdentifier() any
@@ -22,7 +22,7 @@ type Authenticatable interface {
 }
 
 // UserProviderContract finds users for authentication purposes.
-// Mirrors AdonisJS's UserProviderContract.
+// Mirrors Astra's UserProviderContract.
 type UserProviderContract interface {
 	// FindById finds a user by their unique identifier.
 	FindById(ctx context.Context, id any) (Authenticatable, error)
@@ -52,7 +52,7 @@ type TokenContract interface {
 
 // GuardContract defines the interface for an authentication guard.
 // Guards handle the actual authentication logic (JWT, OAT, Session, etc.).
-// Mirrors AdonisJS's GuardContract.
+// Mirrors Astra's GuardContract.
 type GuardContract interface {
 	// Attempt authenticates via credentials and returns a token.
 	// Mirrors: await auth.attempt(email, password)
@@ -79,7 +79,7 @@ type GuardContract interface {
 }
 
 // AuthManagerContract manages multiple auth guards.
-// Mirrors AdonisJS's Auth module.
+// Mirrors Astra's Auth module.
 type AuthManagerContract interface {
 	// Use selects an auth guard by name.
 	// Mirrors: auth.use('jwt'), auth.use('api')

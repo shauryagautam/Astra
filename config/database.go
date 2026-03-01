@@ -1,7 +1,7 @@
 package config
 
 // DatabaseConfig holds PostgreSQL database configuration.
-// Mirrors AdonisJS's config/database.ts.
+// Mirrors Astra's config/database.ts.
 type DatabaseConfig struct {
 	// Connection specifies the default connection (e.g., "pg").
 	Connection string
@@ -37,7 +37,7 @@ func DefaultDatabaseConfig() DatabaseConfig {
 			Port:            5432,
 			User:            "postgres",
 			Password:        "",
-			Database:        "adonis_dev",
+			Database:        "astra_dev",
 			SSLMode:         "disable",
 			MaxOpenConns:    25,
 			MaxIdleConns:    5,

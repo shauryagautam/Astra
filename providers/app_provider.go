@@ -5,13 +5,13 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/shaurya/adonis/config"
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/config"
+	"github.com/shaurya/astra/contracts"
 )
 
 // AppProvider registers core application services into the container.
 // This is the first provider registered, wiring up Logger, Env, etc.
-// Mirrors AdonisJS's AppProvider.
+// Mirrors Astra's AppProvider.
 type AppProvider struct {
 	BaseProvider
 }
@@ -29,22 +29,22 @@ func (p *AppProvider) Register() error {
 	config.LoadEnv(".env") //nolint:errcheck
 
 	// Register the Logger
-	p.App.Singleton("Adonis/Core/Logger", func(c contracts.ContainerContract) (any, error) {
-		return log.New(os.Stdout, "[adonis] ", log.LstdFlags), nil
+	p.App.Singleton("Astra/Core/Logger", func(c contracts.ContainerContract) (any, error) {
+		return log.New(os.Stdout, "[astra] ", log.LstdFlags), nil
 	})
-	p.App.Alias("Logger", "Adonis/Core/Logger")
+	p.App.Alias("Logger", "Astra/Core/Logger")
 
 	// Register the Env manager
-	p.App.Singleton("Adonis/Core/Env", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Env", func(c contracts.ContainerContract) (any, error) {
 		return NewEnvManager(), nil
 	})
-	p.App.Alias("Env", "Adonis/Core/Env")
+	p.App.Alias("Env", "Astra/Core/Env")
 
 	return nil
 }
 
 // EnvManager handles environment variable access.
-// Mirrors AdonisJS's Env module.
+// Mirrors Astra's Env module.
 type EnvManager struct {
 	overrides map[string]string
 }

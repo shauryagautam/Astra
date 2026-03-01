@@ -84,7 +84,7 @@ func serveWithWatch() error {
 
 // generateAirConfig creates an .air.toml config file.
 func generateAirConfig() error {
-	config := `# Air configuration for Adonis Go hot-reload
+	config := `# Air configuration for Astra Go hot-reload
 root = "."
 tmp_dir = "tmp"
 

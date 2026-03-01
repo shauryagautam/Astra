@@ -20,7 +20,7 @@ const (
 // ══════════════════════════════════════════════════════════════════════
 // Hook Interfaces
 //
-// AdonisJS uses decorators for hooks:
+// Astra uses decorators for hooks:
 //   @beforeSave()
 //   public static async hashPassword(user: User) { ... }
 //
@@ -92,7 +92,7 @@ type AfterFindHook interface {
 // ══════════════════════════════════════════════════════════════════════
 // Relationship Helpers
 //
-// AdonisJS uses decorators for relationships:
+// Astra uses decorators for relationships:
 //   @hasMany(() => Post)
 //   public posts: HasMany<typeof Post>
 //

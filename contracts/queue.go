@@ -18,7 +18,7 @@ type JobContract interface {
 }
 
 // QueueContract defines the queue manager.
-// Mirrors AdonisJS's Queue provider.
+// Mirrors Astra's Queue provider.
 type QueueContract interface {
 	// Push adds a job to the queue.
 	Push(job JobContract) error

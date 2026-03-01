@@ -1,5 +1,5 @@
 // Package database provides migration runner and schema builder.
-// Mirrors AdonisJS's database/migrations system.
+// Mirrors Astra's database/migrations system.
 package database
 
 import (
@@ -13,7 +13,7 @@ import (
 )
 
 // Migration represents a single database migration.
-// Mirrors AdonisJS migration files.
+// Mirrors Astra migration files.
 type Migration struct {
 	// Name is the unique migration identifier (e.g., "20240101120000_create_users_table").
 	Name string
@@ -34,11 +34,11 @@ type MigrationRecord struct {
 }
 
 func (MigrationRecord) TableName() string {
-	return "adonis_migrations"
+	return "astra_migrations"
 }
 
 // MigrationRunner manages database migrations.
-// Mirrors AdonisJS's migration:run and migration:rollback commands.
+// Mirrors Astra's migration:run and migration:rollback commands.
 type MigrationRunner struct {
 	db         *gorm.DB
 	migrations []Migration
@@ -50,7 +50,7 @@ func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 	return &MigrationRunner{
 		db:         db,
 		migrations: make([]Migration, 0),
-		logger:     log.New(os.Stdout, "[adonis:migration] ", log.LstdFlags),
+		logger:     log.New(os.Stdout, "[astra:migration] ", log.LstdFlags),
 	}
 }
 
@@ -245,7 +245,7 @@ type MigrationStatus struct {
 // Schema Builder
 //
 // Provides helpers for common schema operations inside migration Up/Down.
-// Mirrors AdonisJS's this.schema.createTable() etc.
+// Mirrors Astra's this.schema.createTable() etc.
 // ══════════════════════════════════════════════════════════════════════
 
 // Schema provides schema operations for use in migrations.

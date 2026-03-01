@@ -61,7 +61,7 @@ func scaffoldController(name string, resource bool) error {
 
 const controllerTemplate = `package {{.Package}}
 
-import "github.com/shaurya/adonis/contracts"
+import "github.com/shaurya/astra/contracts"
 
 // {{.Name}} handles HTTP requests.
 type {{.Name}} struct{}
@@ -81,7 +81,7 @@ func (c *{{.Name}}) Handle(ctx contracts.HttpContextContract) error {
 
 const resourceControllerTemplate = `package {{.Package}}
 
-import "github.com/shaurya/adonis/contracts"
+import "github.com/shaurya/astra/contracts"
 
 // {{.Name}} handles RESTful resource requests.
 type {{.Name}} struct{}
@@ -177,7 +177,7 @@ func scaffoldModel(name string) error {
 
 const modelTemplate = `package models
 
-import "github.com/shaurya/adonis/app/Models"
+import "github.com/shaurya/astra/app/Models"
 
 // {{.Name}} represents the {{.TableName}} table.
 type {{.Name}} struct {
@@ -228,7 +228,7 @@ func scaffoldMigration(name string, tableName string) error {
 const migrationTemplate = `package migrations
 
 import (
-	"github.com/shaurya/adonis/database"
+	"github.com/shaurya/astra/database"
 	"gorm.io/gorm"
 )
 
@@ -284,7 +284,7 @@ func scaffoldMiddleware(name string) error {
 
 const middlewareTemplate = `package middleware
 
-import "github.com/shaurya/adonis/contracts"
+import "github.com/shaurya/astra/contracts"
 
 // {{.Name}} is a custom middleware.
 func {{.FunctionName}}() contracts.MiddlewareFunc {
@@ -328,7 +328,7 @@ func scaffoldProvider(name string) error {
 
 const providerTemplate = `package providers
 
-import "github.com/shaurya/adonis/contracts"
+import "github.com/shaurya/astra/contracts"
 
 // {{.Name}} is a custom service provider.
 type {{.Name}} struct {

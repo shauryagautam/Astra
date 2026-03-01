@@ -1,9 +1,9 @@
 package main
 
 import (
-	exceptions "github.com/shaurya/adonis/app/Exceptions"
-	validator "github.com/shaurya/adonis/app/Validator"
-	"github.com/shaurya/adonis/contracts"
+	exceptions "github.com/shaurya/astra/app/Exceptions"
+	validator "github.com/shaurya/astra/app/Validator"
+	"github.com/shaurya/astra/contracts"
 )
 
 // UsersController handles user-related requests

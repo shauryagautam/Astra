@@ -8,11 +8,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Request wraps the standard http.Request with convenience methods.
-// Mirrors AdonisJS's Request class.
+// Mirrors Astra's Request class.
 type Request struct {
 	raw       *http.Request
 	body      []byte
@@ -198,7 +198,7 @@ func (r *Request) Validate(dest any) error {
 var _ contracts.RequestContract = (*Request)(nil)
 
 // Response wraps http.ResponseWriter with convenience methods.
-// Mirrors AdonisJS's Response class.
+// Mirrors Astra's Response class.
 type Response struct {
 	writer     http.ResponseWriter
 	statusCode int
@@ -327,7 +327,7 @@ func (r *Response) Raw() http.ResponseWriter {
 var _ contracts.ResponseContract = (*Response)(nil)
 
 // HttpContext is the central context object passed to all handlers and middleware.
-// Mirrors AdonisJS's HttpContext.
+// Mirrors Astra's HttpContext.
 type HttpContext struct {
 	request  *Request
 	response *Response

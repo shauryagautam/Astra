@@ -1,10 +1,10 @@
 package providers
 
-import "github.com/shaurya/adonis/contracts"
+import "github.com/shaurya/astra/contracts"
 
 // BaseProvider is a base struct for service providers.
 // Embed it to inherit default no-op implementations of lifecycle hooks.
-// Mirrors AdonisJS's base ServiceProvider class.
+// Mirrors Astra's base ServiceProvider class.
 type BaseProvider struct {
 	App contracts.ApplicationContract
 }

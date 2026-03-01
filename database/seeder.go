@@ -9,7 +9,7 @@ import (
 )
 
 // Seeder represents a single database seeder.
-// Mirrors AdonisJS's seeder files.
+// Mirrors Astra's seeder files.
 type Seeder struct {
 	// Name is the seeder name.
 	Name string
@@ -30,7 +30,7 @@ func NewSeederRunner(db *gorm.DB) *SeederRunner {
 	return &SeederRunner{
 		db:      db,
 		seeders: make([]Seeder, 0),
-		logger:  log.New(os.Stdout, "[adonis:seeder] ", log.LstdFlags),
+		logger:  log.New(os.Stdout, "[astra:seeder] ", log.LstdFlags),
 	}
 }
 

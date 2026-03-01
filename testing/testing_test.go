@@ -1,10 +1,10 @@
-package adonistesting
+package astratesting
 
 import (
 	"testing"
 
-	adonisHttp "github.com/shaurya/adonis/app/Http"
-	"github.com/shaurya/adonis/contracts"
+	astraHttp "github.com/shaurya/astra/app/Http"
+	"github.com/shaurya/astra/contracts"
 )
 
 func TestTestAppBootstrap(t *testing.T) {
@@ -22,7 +22,7 @@ func TestTestAppBootstrap(t *testing.T) {
 
 func TestGetRequest(t *testing.T) {
 	app := NewTestApp()
-	app.RegisterRoutes(func(router *adonisHttp.Router) {
+	app.RegisterRoutes(func(router *astraHttp.Router) {
 		router.Get("/test", func(ctx contracts.HttpContextContract) error {
 			return ctx.Response().Json(map[string]any{
 				"message": "hello test",
@@ -38,7 +38,7 @@ func TestGetRequest(t *testing.T) {
 
 func TestPostRequestWithJSON(t *testing.T) {
 	app := NewTestApp()
-	app.RegisterRoutes(func(router *adonisHttp.Router) {
+	app.RegisterRoutes(func(router *astraHttp.Router) {
 		router.Post("/echo", func(ctx contracts.HttpContextContract) error {
 			return ctx.Response().Status(201).Json(map[string]any{
 				"received": true,
@@ -62,7 +62,7 @@ func TestNotFoundRoute(t *testing.T) {
 
 func TestAssertJsonHasKey(t *testing.T) {
 	app := NewTestApp()
-	app.RegisterRoutes(func(router *adonisHttp.Router) {
+	app.RegisterRoutes(func(router *astraHttp.Router) {
 		router.Get("/keys", func(ctx contracts.HttpContextContract) error {
 			return ctx.Response().Json(map[string]any{
 				"name":  "John",
@@ -79,7 +79,7 @@ func TestAssertJsonHasKey(t *testing.T) {
 
 func TestWithHeader(t *testing.T) {
 	app := NewTestApp()
-	app.RegisterRoutes(func(router *adonisHttp.Router) {
+	app.RegisterRoutes(func(router *astraHttp.Router) {
 		router.Get("/header-check", func(ctx contracts.HttpContextContract) error {
 			val := ctx.Request().Header("X-Custom")
 			return ctx.Response().Json(map[string]any{"custom": val})

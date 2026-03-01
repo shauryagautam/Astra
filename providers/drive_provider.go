@@ -4,12 +4,12 @@ import (
 	"context"
 	"path/filepath"
 
-	drive "github.com/shaurya/adonis/app/Drive"
-	"github.com/shaurya/adonis/contracts"
+	drive "github.com/shaurya/astra/app/Drive"
+	"github.com/shaurya/astra/contracts"
 )
 
 // DriveProvider registers the Drive manager and disks into the container.
-// Mirrors AdonisJS's @adonisjs/drive provider.
+// Mirrors Astra's @astra/drive provider.
 type DriveProvider struct {
 	BaseProvider
 }
@@ -23,7 +23,7 @@ func NewDriveProvider(app contracts.ApplicationContract) *DriveProvider {
 
 // Register binds the Drive manager as a singleton.
 func (p *DriveProvider) Register() error {
-	p.App.Singleton("Adonis/Core/Drive", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Drive", func(c contracts.ContainerContract) (any, error) {
 		// Use the Env manager to get the default disk
 		env, err := c.Make("Env")
 		if err != nil {
@@ -57,7 +57,7 @@ func (p *DriveProvider) Register() error {
 		return manager, nil
 	})
 
-	p.App.Alias("Drive", "Adonis/Core/Drive")
+	p.App.Alias("Drive", "Astra/Core/Drive")
 
 	return nil
 }

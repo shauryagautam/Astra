@@ -15,7 +15,7 @@ type MailMessage struct {
 }
 
 // MailerContract defines the mail manager interface.
-// Mirrors AdonisJS's @adonisjs/mail module.
+// Mirrors Astra's @astra/mail module.
 type MailerContract interface {
 	// Use returns a named mailer instance.
 	Use(name string) MailerDriverContract

@@ -1,5 +1,5 @@
-// Package redis provides the Redis module for Adonis Go.
-// Wraps go-redis with an AdonisJS-style API supporting multiple connections,
+// Package redis provides the Redis module for Astra Go.
+// Wraps go-redis with an Astra-style API supporting multiple connections,
 // pub/sub, caching, rate limiting, and session storage.
 package redis
 
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // ConnectionConfig holds settings for a Redis connection.
@@ -38,7 +38,7 @@ func DefaultManagerConfig() ManagerConfig {
 }
 
 // Manager manages multiple Redis connections.
-// Mirrors AdonisJS: Redis.connection('local').get('key')
+// Mirrors Astra: Redis.connection('local').get('key')
 type Manager struct {
 	mu          sync.RWMutex
 	config      ManagerConfig

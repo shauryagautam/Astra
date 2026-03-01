@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // RedisBlacklist implements the BlacklistContract using Redis.

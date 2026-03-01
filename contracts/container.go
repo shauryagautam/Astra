@@ -1,31 +1,31 @@
-// Package contracts defines all interfaces (contracts) for the Adonis framework.
-// Following AdonisJS convention, contracts are defined first and implementations
+// Package contracts defines all interfaces (contracts) for the Astra framework.
+// Following Astra convention, contracts are defined first and implementations
 // are provided by concrete types in the app/ package.
 //
-// Go Idiom Note: AdonisJS uses TypeScript's type system and decorators for IoC.
+// Go Idiom Note: Astra uses TypeScript's type system and decorators for IoC.
 // In Go, we use string-keyed registries with `any` type and factory functions
 // to achieve equivalent dynamic binding/resolution. Type assertions are used
 // at the call site to recover concrete types.
 package contracts
 
 // BindingFactory is a factory function that receives the container
-// and returns a new instance. This replicates AdonisJS's container
+// and returns a new instance. This replicates Astra's container
 // callback pattern: container.bind('key', (app) => new Service(app))
 type BindingFactory func(container ContainerContract) (any, error)
 
 // ContainerContract defines the IoC (Inversion of Control) container interface.
-// This is the Go equivalent of @adonisjs/fold's Container class.
+// This is the Go equivalent of @astra/fold's Container class.
 //
 // The container is the backbone of the framework — it manages all service
 // bindings, singletons, and dependency resolution.
 //
-// Usage mirrors AdonisJS:
+// Usage mirrors Astra:
 //
-//	container.Bind("Adonis/Src/Route", func(c ContainerContract) (any, error) {
+//	container.Bind("Astra/Src/Route", func(c ContainerContract) (any, error) {
 //	    return NewRouter(), nil
 //	})
 //
-//	router := container.Use("Adonis/Src/Route").(RouterContract)
+//	router := container.Use("Astra/Src/Route").(RouterContract)
 type ContainerContract interface {
 	// Bind registers a factory function for a given namespace.
 	// Each call to Make/Use will invoke the factory, producing a new instance.
@@ -47,8 +47,8 @@ type ContainerContract interface {
 	MustMake(namespace string) any
 
 	// Use is an alias for MustMake — resolves a binding or panics.
-	// This matches AdonisJS's use() import pattern:
-	//   const Route = use('Adonis/Src/Route')
+	// This matches Astra's use() import pattern:
+	//   const Route = use('Astra/Src/Route')
 	Use(namespace string) any
 
 	// HasBinding checks if a namespace has been registered.
@@ -67,11 +67,11 @@ type ContainerContract interface {
 
 	// Call resolves all dependencies and calls the given function.
 	// The function signature determines which bindings to inject.
-	// This is a simplified version of AdonisJS's auto-injection.
+	// This is a simplified version of Astra's auto-injection.
 	Call(fn any, args ...any) ([]any, error)
 
 	// RegisterType maps a reflect.Type to a namespace for auto-injection.
-	// Mirrors: container.registerType(Router, 'Adonis/Core/Route')
+	// Mirrors: container.registerType(Router, 'Astra/Core/Route')
 	RegisterType(kind any, namespace string)
 
 	// WithBindings executes a callback with specific bindings resolved.

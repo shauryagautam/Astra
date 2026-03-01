@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	redis "github.com/shaurya/adonis/app/Redis"
-	"github.com/shaurya/adonis/contracts"
+	redis "github.com/shaurya/astra/app/Redis"
+	"github.com/shaurya/astra/contracts"
 )
 
 // RedisProvider registers Redis services into the container.
-// Mirrors AdonisJS's RedisProvider.
+// Mirrors Astra's RedisProvider.
 type RedisProvider struct {
 	BaseProvider
 }
@@ -24,7 +24,7 @@ func NewRedisProvider(app contracts.ApplicationContract) *RedisProvider {
 // Register binds Redis manager, cache, rate limiter, and session store.
 func (p *RedisProvider) Register() error {
 	// Register the Redis manager
-	p.App.Singleton("Adonis/Redis", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Redis", func(c contracts.ContainerContract) (any, error) {
 		env := c.Use("Env").(*EnvManager)
 
 		config := redis.ManagerConfig{
@@ -41,40 +41,40 @@ func (p *RedisProvider) Register() error {
 
 		return redis.NewManager(config), nil
 	})
-	p.App.Alias("Redis", "Adonis/Redis")
+	p.App.Alias("Redis", "Astra/Redis")
 
 	// Register the Cache backed by Redis
-	p.App.Singleton("Adonis/Cache", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Cache", func(c contracts.ContainerContract) (any, error) {
 		redisMgr := c.Use("Redis").(*redis.Manager)
 		conn := redisMgr.Default()
-		return redis.NewCache(conn, "adonis:cache:"), nil
+		return redis.NewCache(conn, "astra:cache:"), nil
 	})
-	p.App.Alias("Cache", "Adonis/Cache")
+	p.App.Alias("Cache", "Astra/Cache")
 
 	// Register the Rate Limiter
-	p.App.Singleton("Adonis/RateLimiter", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/RateLimiter", func(c contracts.ContainerContract) (any, error) {
 		redisMgr := c.Use("Redis").(*redis.Manager)
 		conn := redisMgr.Default()
-		return redis.NewRateLimiter(conn, "adonis:ratelimit:"), nil
+		return redis.NewRateLimiter(conn, "astra:ratelimit:"), nil
 	})
-	p.App.Alias("RateLimiter", "Adonis/RateLimiter")
+	p.App.Alias("RateLimiter", "Astra/RateLimiter")
 
 	// Register Redis-backed Session Store
-	p.App.Singleton("Adonis/SessionStore", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/SessionStore", func(c contracts.ContainerContract) (any, error) {
 		redisMgr := c.Use("Redis").(*redis.Manager)
 		conn := redisMgr.Default()
 		ttl := 24 * time.Hour
 		return redis.NewSessionStore(conn, ttl), nil
 	})
-	p.App.Alias("SessionStore", "Adonis/SessionStore")
+	p.App.Alias("SessionStore", "Astra/SessionStore")
 
 	// Register Redis-backed Token Store (for OAT auth)
-	p.App.Singleton("Adonis/RedisTokenStore", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/RedisTokenStore", func(c contracts.ContainerContract) (any, error) {
 		redisMgr := c.Use("Redis").(*redis.Manager)
 		conn := redisMgr.Default()
 		return redis.NewTokenStore(conn), nil
 	})
-	p.App.Alias("RedisTokenStore", "Adonis/RedisTokenStore")
+	p.App.Alias("RedisTokenStore", "Astra/RedisTokenStore")
 
 	return nil
 }

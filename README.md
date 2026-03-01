@@ -1,13 +1,13 @@
 <div align="center">
 
-# ⚡ AdonisGo
+# ⚡ Astra
 
-**The AdonisJS-inspired Go Framework — Elegant, Powerful, Production-Ready**
+**The Astra-inspired Go Framework — Elegant, Powerful, Production-Ready**
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-*Build beautiful API backends in Go with the developer experience you love from AdonisJS*
+*Build beautiful API backends in Go with the developer experience you love from Astra*
 
 </div>
 
@@ -38,7 +38,7 @@
 
 ```bash
 # Clone the framework
-git clone https://github.com/shaurya/adonis.git my-app
+git clone https://github.com/shaurya/astra.git my-app
 cd my-app
 
 # Install dependencies
@@ -58,7 +58,7 @@ Your server is now running at `http://localhost:3333` 🚀
 
 ```go
 func RegisterRoutes(app contracts.ApplicationContract) {
-    Route := app.Use("Route").(*adonisHttp.Router)
+    Route := app.Use("Route").(*astraHttp.Router)
 
     Route.Get("/", func(ctx contracts.HttpContextContract) error {
         return ctx.Response().Json(map[string]any{
@@ -81,7 +81,7 @@ func RegisterRoutes(app contracts.ApplicationContract) {
 ### 2. Validate Input
 
 ```go
-import "github.com/shaurya/adonis/app/Validator"
+import "github.com/shaurya/astra/app/Validator"
 
 func CreateUser(ctx contracts.HttpContextContract) error {
     body := ctx.Request().All()
@@ -105,7 +105,7 @@ func CreateUser(ctx contracts.HttpContextContract) error {
 ### 3. Handle Errors
 
 ```go
-import "github.com/shaurya/adonis/app/Exceptions"
+import "github.com/shaurya/astra/app/Exceptions"
 
 // Return structured errors from handlers
 return exceptions.NotFound("User not found")
@@ -148,7 +148,7 @@ err := models.Create(db, user)
 │   ├── Models/          # Lucid ORM (BaseModel, QueryBuilder, Hooks)
 │   ├── Redis/           # Redis manager, Cache, RateLimiter, Sessions
 │   └── Validator/       # Schema validation engine
-├── cmd/adonis/          # Ace CLI commands
+├── cmd/astra/          # Ace CLI commands
 ├── config/              # App, Database, CORS, Auth, Redis, Env config
 ├── contracts/           # Interface definitions (IoC, HTTP, ORM, Auth, etc.)
 ├── database/            # Migrations & Seeders
@@ -232,24 +232,24 @@ Ws.BroadcastToRoom("chat:room_1", "new_message", msg)
 
 ```bash
 # Development
-go run cmd/adonis/main.go serve            # Start server
-go run cmd/adonis/main.go serve --watch     # Start with hot-reload (Air)
+go run cmd/astra/main.go serve            # Start server
+go run cmd/astra/main.go serve --watch     # Start with hot-reload (Air)
 
 # Scaffolding
-go run cmd/adonis/main.go make:controller UsersController
-go run cmd/adonis/main.go make:controller PostsController --resource
-go run cmd/adonis/main.go make:model User --migration
-go run cmd/adonis/main.go make:migration create_posts_table
-go run cmd/adonis/main.go make:middleware RateLimiter
-go run cmd/adonis/main.go make:provider PaymentProvider
+go run cmd/astra/main.go make:controller UsersController
+go run cmd/astra/main.go make:controller PostsController --resource
+go run cmd/astra/main.go make:model User --migration
+go run cmd/astra/main.go make:migration create_posts_table
+go run cmd/astra/main.go make:middleware RateLimiter
+go run cmd/astra/main.go make:provider PaymentProvider
 
 # Database
-go run cmd/adonis/main.go migration:run
-go run cmd/adonis/main.go migration:rollback
-go run cmd/adonis/main.go migration:status
-go run cmd/adonis/main.go migration:reset
-go run cmd/adonis/main.go migration:refresh
-go run cmd/adonis/main.go db:seed
+go run cmd/astra/main.go migration:run
+go run cmd/astra/main.go migration:rollback
+go run cmd/astra/main.go migration:status
+go run cmd/astra/main.go migration:reset
+go run cmd/astra/main.go migration:refresh
+go run cmd/astra/main.go db:seed
 ```
 
 ---
@@ -266,12 +266,12 @@ Key configuration variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_NAME` | AdonisGo | Application name |
+| `APP_NAME` | Astra | Application name |
 | `APP_ENV` | development | Environment (development/production) |
 | `APP_KEY` | — | Secret key for JWT signing |
 | `PORT` | 3333 | HTTP server port |
 | `DB_HOST` | 127.0.0.1 | PostgreSQL host |
-| `DB_DATABASE` | adonis_dev | Database name |
+| `DB_DATABASE` | astra_dev | Database name |
 | `REDIS_HOST` | 127.0.0.1 | Redis host |
 | `HASH_DRIVER` | argon2 | Hash driver (argon2/bcrypt) |
 
@@ -280,11 +280,11 @@ Key configuration variables:
 ## 🧪 Testing
 
 ```go
-import adonistesting "github.com/shaurya/adonis/testing"
+import astratesting "github.com/shaurya/astra/testing"
 
 func TestUsersAPI(t *testing.T) {
-    app := adonistesting.NewTestApp()
-    app.RegisterRoutes(func(router *adonisHttp.Router) {
+    app := astratesting.NewTestApp()
+    app.RegisterRoutes(func(router *astraHttp.Router) {
         router.Get("/users", myHandler)
     })
 

@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // AuthMiddleware returns middleware that requires authentication.
-// Mirrors AdonisJS's auth middleware: Route.get('/dashboard', handler).middleware('auth')
+// Mirrors Astra's auth middleware: Route.get('/dashboard', handler).middleware('auth')
 //
 // Usage in kernel.go:
 //
@@ -37,7 +37,7 @@ func AuthMiddleware(authManager contracts.AuthManagerContract, guardName ...stri
 }
 
 // GuestMiddleware returns middleware that only allows unauthenticated requests.
-// Mirrors AdonisJS's guest middleware.
+// Mirrors Astra's guest middleware.
 func GuestMiddleware(authManager contracts.AuthManagerContract, guardName ...string) contracts.MiddlewareFunc {
 	return func(ctx contracts.HttpContextContract, next func() error) error {
 		var guard contracts.GuardContract

@@ -1,12 +1,12 @@
 package providers
 
 import (
-	queue "github.com/shaurya/adonis/app/Queue"
-	"github.com/shaurya/adonis/contracts"
+	queue "github.com/shaurya/astra/app/Queue"
+	"github.com/shaurya/astra/contracts"
 )
 
 // QueueProvider registers the Queue manager and Registry into the container.
-// Mirrors AdonisJS's Queue provider.
+// Mirrors Astra's Queue provider.
 type QueueProvider struct {
 	BaseProvider
 }
@@ -21,12 +21,12 @@ func NewQueueProvider(app contracts.ApplicationContract) *QueueProvider {
 // Register binds the Queue manager and Registry as singletons.
 func (p *QueueProvider) Register() error {
 	// Register the Job Registry
-	p.App.Singleton("Adonis/Core/JobRegistry", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/JobRegistry", func(c contracts.ContainerContract) (any, error) {
 		return queue.NewRegistry(), nil
 	})
 
 	// Register the Queue Manager
-	p.App.Singleton("Adonis/Core/Queue", func(c contracts.ContainerContract) (any, error) {
+	p.App.Singleton("Astra/Core/Queue", func(c contracts.ContainerContract) (any, error) {
 		// Use the Redis manager to get the default connection
 		redisManager, err := c.Make("Redis")
 		if err != nil {
@@ -36,12 +36,12 @@ func (p *QueueProvider) Register() error {
 		manager := redisManager.(contracts.RedisContract)
 		conn := manager.Connection("default")
 
-		registry := c.Use("Adonis/Core/JobRegistry").(contracts.JobRegistry)
+		registry := c.Use("Astra/Core/JobRegistry").(contracts.JobRegistry)
 		return queue.NewRedisQueue(conn, registry), nil
 	})
 
-	p.App.Alias("Queue", "Adonis/Core/Queue")
-	p.App.Alias("JobRegistry", "Adonis/Core/JobRegistry")
+	p.App.Alias("Queue", "Astra/Core/Queue")
+	p.App.Alias("JobRegistry", "Astra/Core/JobRegistry")
 
 	return nil
 }

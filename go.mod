@@ -1,4 +1,4 @@
-module github.com/shaurya/adonis
+module github.com/shaurya/astra
 
 go 1.25.7
 

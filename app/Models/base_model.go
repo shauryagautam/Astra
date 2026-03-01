@@ -1,7 +1,7 @@
 // Package models provides the Lucid ORM — an Active Record implementation
-// for Go that mirrors AdonisJS's Lucid ORM.
+// for Go that mirrors Astra's Lucid ORM.
 //
-// Go Idiom Note: AdonisJS Lucid uses class-based models with static methods:
+// Go Idiom Note: Astra Lucid uses class-based models with static methods:
 //
 //	const user = await User.find(1)
 //	await user.save()
@@ -26,7 +26,7 @@ import (
 
 // BaseModel provides common fields for all models.
 // Embed this in your model structs to get timestamps and soft deletes.
-// Mirrors AdonisJS's BaseModel class.
+// Mirrors Astra's BaseModel class.
 //
 // Usage:
 //
@@ -59,7 +59,7 @@ func (m *BaseModel) IsPersisted() bool { return m.ID != 0 }
 
 // ══════════════════════════════════════════════════════════════════════
 // Static Model Methods (Generic Functions)
-// These replicate AdonisJS's static model methods like User.find(1)
+// These replicate Astra's static model methods like User.find(1)
 // ══════════════════════════════════════════════════════════════════════
 
 // Find retrieves a single record by primary key.

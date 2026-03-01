@@ -1,6 +1,6 @@
 // Package hash provides the Hash module — a unified hashing API
 // with pluggable drivers (Argon2id, Bcrypt).
-// Mirrors AdonisJS's @adonisjs/hash module.
+// Mirrors Astra's @astra/hash module.
 //
 // Usage:
 //
@@ -192,7 +192,7 @@ func (d *BcryptDriver) NeedsRehash(hashedValue string) bool {
 
 // ══════════════════════════════════════════════════════════════════════
 // Hash Manager
-// Mirrors AdonisJS's Hash module: Hash.make(), Hash.verify(), Hash.use()
+// Mirrors Astra's Hash module: Hash.make(), Hash.verify(), Hash.use()
 // ══════════════════════════════════════════════════════════════════════
 
 // Driver is the interface all hash drivers implement.

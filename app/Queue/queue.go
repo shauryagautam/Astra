@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // RedisQueue implements the QueueContract using Redis via the contracts interface.
@@ -25,8 +25,8 @@ func NewRedisQueue(r contracts.RedisConnectionContract, registry contracts.JobRe
 	return &RedisQueue{
 		redis:    r,
 		registry: registry,
-		prefix:   "adonis:queue:",
-		logger:   log.New(os.Stdout, "[adonis:queue] ", log.LstdFlags),
+		prefix:   "astra:queue:",
+		logger:   log.New(os.Stdout, "[astra:queue] ", log.LstdFlags),
 	}
 }
 

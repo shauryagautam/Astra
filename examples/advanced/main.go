@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/shaurya/adonis/app"
-	"github.com/shaurya/adonis/contracts"
-	"github.com/shaurya/adonis/providers"
+	"github.com/shaurya/astra/app"
+	"github.com/shaurya/astra/contracts"
+	"github.com/shaurya/astra/providers"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	defer application.Shutdown()
 
 	fmt.Println("════════════════════════════════════════════════════════")
-	fmt.Printf("  ⚡ AdonisGo Advanced Example running\n")
+	fmt.Printf("  ⚡ Astra Advanced Example running\n")
 	fmt.Println("════════════════════════════════════════════════════════")
 
 	// ── Setup Advanced Features ───────────────────────────────────────

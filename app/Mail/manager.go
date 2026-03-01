@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // MailManager manages multiple mailers and provides a default mailer.

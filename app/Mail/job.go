@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // MailJob represents a job for background email delivery.
@@ -26,7 +26,7 @@ func (j *MailJob) Execute(ctx context.Context) error {
 
 // DisplayName returns the internal job name.
 func (j *MailJob) DisplayName() string {
-	return "adonis:mail"
+	return "astra:mail"
 }
 
 func (j *MailJob) Tries() int {

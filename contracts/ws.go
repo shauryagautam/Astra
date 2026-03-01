@@ -28,7 +28,7 @@ type WsClientContract interface {
 }
 
 // WsServerContract defines the websocket manager.
-// Mirrors AdonisJS's WebSocket module.
+// Mirrors Astra's WebSocket module.
 type WsServerContract interface {
 	// Handle handles the websocket upgrade request.
 	Handle(w http.ResponseWriter, r *http.Request) error

@@ -1,5 +1,5 @@
 // Package config provides environment variable loading and typed configuration access.
-// Loads .env files on application startup, mirroring AdonisJS's Env module.
+// Loads .env files on application startup, mirroring Astra's Env module.
 //
 // Usage:
 //

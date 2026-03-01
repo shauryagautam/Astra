@@ -7,7 +7,7 @@ import (
 )
 
 // QueryBuilder provides a chainable query interface wrapping GORM.
-// Mirrors AdonisJS's Lucid query builder:
+// Mirrors Astra's Lucid query builder:
 //
 //	const users = await User.query()
 //	  .where('age', '>', 18)
@@ -127,7 +127,7 @@ func (q *QueryBuilder[T]) Distinct(columns ...string) *QueryBuilder[T] {
 }
 
 // Scopes applies one or more query scopes.
-// Mirrors AdonisJS's query scopes feature.
+// Mirrors Astra's query scopes feature.
 func (q *QueryBuilder[T]) Scopes(scopes ...func(*gorm.DB) *gorm.DB) *QueryBuilder[T] {
 	q.db = q.db.Scopes(scopes...)
 	return q

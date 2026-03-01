@@ -3,10 +3,10 @@ package contracts
 import "time"
 
 // ModelContract defines the base interface for Lucid ORM models.
-// In AdonisJS, models extend BaseModel. In Go, we use composition
+// In Astra, models extend BaseModel. In Go, we use composition
 // with a generic BaseModel[T] struct that provides Active Record methods.
 //
-// Go Idiom Note: AdonisJS uses class static methods (User.find(1)).
+// Go Idiom Note: Astra uses class static methods (User.find(1)).
 // Go doesn't have static methods on structs. We use package-level
 // generic functions: model.Find[User](db, 1) — or a QueryBuilder
 // pattern: User.Query().Where(...).First()
@@ -33,7 +33,7 @@ type ModelContract interface {
 // QueryBuilderContract defines the chainable query builder interface.
 // Mirrors Lucid's query builder with a fluent API.
 //
-// Usage in AdonisJS:
+// Usage in Astra:
 //
 //	const users = await User.query()
 //	  .where('age', '>', 18)
@@ -120,7 +120,7 @@ const (
 )
 
 // MigrationContract defines a single database migration.
-// Mirrors AdonisJS's migration class with up/down methods.
+// Mirrors Astra's migration class with up/down methods.
 type MigrationContract interface {
 	// Up runs the migration (create table, add column, etc.).
 	Up() error
@@ -134,7 +134,7 @@ type MigrationContract interface {
 }
 
 // SchemaBuilderContract builds database schema operations.
-// Mirrors AdonisJS's Schema class used inside migrations.
+// Mirrors Astra's Schema class used inside migrations.
 type SchemaBuilderContract interface {
 	// CreateTable creates a new database table.
 	CreateTable(name string, callback func(table TableBuilderContract)) error

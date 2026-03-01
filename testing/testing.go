@@ -1,15 +1,15 @@
-// Package testing provides test utilities for Adonis Go applications.
-// Mirrors AdonisJS's testing helpers for building and executing test requests.
+// Package testing provides test utilities for Astra Go applications.
+// Mirrors Astra's testing helpers for building and executing test requests.
 //
 // Usage:
 //
 //	func TestHomePage(t *testing.T) {
-//	    app := adonistesting.NewTestApp()
+//	    app := astratesting.NewTestApp()
 //	    resp := app.Get("/").Expect(t)
 //	    resp.AssertStatus(200)
-//	    resp.AssertJson("framework", "Adonis Go")
+//	    resp.AssertJson("framework", "Astra Go")
 //	}
-package adonistesting
+package astratesting
 
 import (
 	"encoding/json"
@@ -19,22 +19,22 @@ import (
 	"strings"
 	"testing"
 
-	adonisApp "github.com/shaurya/adonis/app"
-	adonisHttp "github.com/shaurya/adonis/app/Http"
-	"github.com/shaurya/adonis/contracts"
-	"github.com/shaurya/adonis/providers"
+	astraApp "github.com/shaurya/astra/app"
+	astraHttp "github.com/shaurya/astra/app/Http"
+	"github.com/shaurya/astra/contracts"
+	"github.com/shaurya/astra/providers"
 )
 
-// TestApp provides a testing wrapper around the Adonis application.
+// TestApp provides a testing wrapper around the Astra application.
 type TestApp struct {
-	App    *adonisApp.Application
-	Server *adonisHttp.Server
-	Router *adonisHttp.Router
+	App    *astraApp.Application
+	Server *astraHttp.Server
+	Router *astraHttp.Router
 }
 
 // NewTestApp creates a new test application with the core providers bootstrapped.
 func NewTestApp() *TestApp {
-	application := adonisApp.NewApplication(".")
+	application := astraApp.NewApplication(".")
 
 	// Register minimal providers for testing
 	application.RegisterProviders([]contracts.ServiceProviderContract{
@@ -47,8 +47,8 @@ func NewTestApp() *TestApp {
 		panic("Failed to boot test app: " + err.Error())
 	}
 
-	router := application.Use("Route").(*adonisHttp.Router)
-	server := application.Use("Server").(*adonisHttp.Server)
+	router := application.Use("Route").(*astraHttp.Router)
+	server := application.Use("Server").(*astraHttp.Server)
 
 	return &TestApp{
 		App:    application,
@@ -58,7 +58,7 @@ func NewTestApp() *TestApp {
 }
 
 // RegisterRoutes adds routes for testing.
-func (t *TestApp) RegisterRoutes(fn func(router *adonisHttp.Router)) *TestApp {
+func (t *TestApp) RegisterRoutes(fn func(router *astraHttp.Router)) *TestApp {
 	fn(t.Router)
 	return t
 }
@@ -283,6 +283,6 @@ func NewTestContext(method, path string, body ...string) (contracts.HttpContextC
 	}
 
 	w := httptest.NewRecorder()
-	ctx := adonisHttp.NewHttpContext(w, req)
+	ctx := astraHttp.NewHttpContext(w, req)
 	return ctx, w
 }

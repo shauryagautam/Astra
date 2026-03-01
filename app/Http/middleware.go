@@ -6,16 +6,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // ============================================================================
 // Built-in Middleware
-// AdonisJS comes with CORS, Logger, and Security middleware out of the box.
+// Astra comes with CORS, Logger, and Security middleware out of the box.
 // ============================================================================
 
 // CorsMiddleware returns a middleware that handles CORS headers.
-// Mirrors AdonisJS's CORS middleware from @adonisjs/cors.
+// Mirrors Astra's CORS middleware from @astra/cors.
 func CorsMiddleware(allowedOrigins []string, allowedMethods []string, allowedHeaders []string) contracts.MiddlewareFunc {
 	return func(ctx contracts.HttpContextContract, next func() error) error {
 		origin := ctx.Request().Header("Origin")
@@ -47,9 +47,9 @@ func CorsMiddleware(allowedOrigins []string, allowedMethods []string, allowedHea
 }
 
 // LoggerMiddleware returns a middleware that logs requests.
-// Mirrors AdonisJS's Logger middleware.
+// Mirrors Astra's Logger middleware.
 func LoggerMiddleware() contracts.MiddlewareFunc {
-	logger := log.New(os.Stdout, "[adonis:request] ", log.LstdFlags)
+	logger := log.New(os.Stdout, "[astra:request] ", log.LstdFlags)
 	return func(ctx contracts.HttpContextContract, next func() error) error {
 		start := time.Now()
 		err := next()
@@ -67,7 +67,7 @@ func LoggerMiddleware() contracts.MiddlewareFunc {
 }
 
 // SecureHeadersMiddleware returns a middleware that sets security headers.
-// Mirrors AdonisJS's Shield middleware (@adonisjs/shield).
+// Mirrors Astra's Shield middleware (@astra/shield).
 func SecureHeadersMiddleware() contracts.MiddlewareFunc {
 	return func(ctx contracts.HttpContextContract, next func() error) error {
 		ctx.Response().Header("X-Content-Type-Options", "nosniff")
@@ -82,7 +82,7 @@ func SecureHeadersMiddleware() contracts.MiddlewareFunc {
 
 // RecoveryMiddleware returns a middleware that recovers from panics.
 func RecoveryMiddleware() contracts.MiddlewareFunc {
-	logger := log.New(os.Stderr, "[adonis:panic] ", log.LstdFlags)
+	logger := log.New(os.Stderr, "[astra:panic] ", log.LstdFlags)
 	return func(ctx contracts.HttpContextContract, next func() error) error {
 		defer func() {
 			if r := recover(); r != nil {

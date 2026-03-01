@@ -3,7 +3,7 @@ package events
 import (
 	"testing"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func TestEventOnAndEmit(t *testing.T) {

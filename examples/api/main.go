@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shaurya/adonis/app"
-	exceptions "github.com/shaurya/adonis/app/Exceptions"
-	adonisHttp "github.com/shaurya/adonis/app/Http"
-	"github.com/shaurya/adonis/contracts"
-	"github.com/shaurya/adonis/providers"
+	"github.com/shaurya/astra/app"
+	exceptions "github.com/shaurya/astra/app/Exceptions"
+	astraHttp "github.com/shaurya/astra/app/Http"
+	"github.com/shaurya/astra/contracts"
+	"github.com/shaurya/astra/providers"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func main() {
 	defer application.Shutdown() //nolint:errcheck
 
 	// ── Global Exception Handler ──────────────────────────────────────
-	server := application.Use("Server").(*adonisHttp.Server)
+	server := application.Use("Server").(*astraHttp.Server)
 
 	// Check if APP_DEBUG is enabled
 	env := application.Use("Env").(*providers.EnvManager)
@@ -44,7 +44,7 @@ func main() {
 	server.SetExceptionHandler(exceptions.NewHandler(debug))
 
 	// ── Routes ────────────────────────────────────────────────────────
-	router := application.Use("Route").(*adonisHttp.Router)
+	router := application.Use("Route").(*astraHttp.Router)
 	registerRoutes(router)
 
 	// ── Server Setup ──────────────────────────────────────────────────
@@ -53,7 +53,7 @@ func main() {
 	addr := fmt.Sprintf("%s:%s", host, port)
 
 	fmt.Println("════════════════════════════════════════════════════════")
-	fmt.Printf("  🚀 AdonisGo Example API is running on http://%s\n", addr)
+	fmt.Printf("  🚀 Astra Example API is running on http://%s\n", addr)
 	fmt.Printf("  Environment: %s\n", env.Get("APP_ENV", "development"))
 	fmt.Println("════════════════════════════════════════════════════════")
 

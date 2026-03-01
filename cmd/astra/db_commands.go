@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/shaurya/adonis/app"
-	"github.com/shaurya/adonis/contracts"
-	"github.com/shaurya/adonis/database"
-	"github.com/shaurya/adonis/providers"
+	"github.com/shaurya/astra/app"
+	"github.com/shaurya/astra/contracts"
+	"github.com/shaurya/astra/database"
+	"github.com/shaurya/astra/providers"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )

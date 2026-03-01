@@ -6,7 +6,7 @@ import (
 )
 
 // RedisContract defines the Redis module interface.
-// Mirrors AdonisJS's @adonisjs/redis module.
+// Mirrors Astra's @astra/redis module.
 type RedisContract interface {
 	// Connection returns a named Redis connection.
 	// Mirrors: Redis.connection('local')

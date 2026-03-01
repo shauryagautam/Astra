@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Route represents a single registered route.
@@ -130,7 +130,7 @@ func (g *RouteGroup) As(name string) contracts.RouteGroupContract {
 var _ contracts.RouteGroupContract = (*RouteGroup)(nil)
 
 // Router is the main route registry.
-// Mirrors AdonisJS's Route module: Route.get(), Route.group(), Route.resource().
+// Mirrors Astra's Route module: Route.get(), Route.group(), Route.resource().
 type Router struct {
 	mu            sync.RWMutex
 	routes        []*Route

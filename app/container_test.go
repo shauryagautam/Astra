@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func TestContainerBind(t *testing.T) {
@@ -95,10 +95,10 @@ func TestContainerHasBinding(t *testing.T) {
 
 func TestContainerAlias(t *testing.T) {
 	c := NewContainer()
-	c.Singleton("Adonis/Core/Router", func(container contracts.ContainerContract) (any, error) {
+	c.Singleton("Astra/Core/Router", func(container contracts.ContainerContract) (any, error) {
 		return "router-instance", nil
 	})
-	c.Alias("Route", "Adonis/Core/Router")
+	c.Alias("Route", "Astra/Core/Router")
 
 	val := c.Use("Route")
 	if val != "router-instance" {
@@ -195,12 +195,12 @@ func TestContainerCall(t *testing.T) {
 	// 2. Test mixed auto-injection and explicit args
 	results, err = c.Call(func(s mockService, name string, age int) string {
 		return fmt.Sprintf("%s-%s-%d", s.Do(), name, age)
-	}, "adonis", 5)
+	}, "astra", 5)
 	if err != nil {
 		t.Fatalf("Call failed: %v", err)
 	}
-	if results[0].(string) != "done-adonis-5" {
-		t.Errorf("Expected 'done-adonis-5', got '%v'", results[0])
+	if results[0].(string) != "done-astra-5" {
+		t.Errorf("Expected 'done-astra-5', got '%v'", results[0])
 	}
 }
 

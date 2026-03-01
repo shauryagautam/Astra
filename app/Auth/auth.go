@@ -1,5 +1,5 @@
-// Package auth provides authentication guards for Adonis Go.
-// Mirrors AdonisJS's @adonisjs/auth with JWT and OAT guards.
+// Package auth provides authentication guards for Astra Go.
+// Mirrors Astra's @astra/auth with JWT and OAT guards.
 package auth
 
 import (
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 // Common errors.
@@ -38,7 +38,7 @@ var _ contracts.TokenContract = (*Token)(nil)
 
 // ══════════════════════════════════════════════════════════════════════
 // JWT Guard
-// Mirrors AdonisJS's JWT web guard.
+// Mirrors Astra's JWT web guard.
 // ══════════════════════════════════════════════════════════════════════
 
 // JWTConfig holds JWT guard configuration.
@@ -187,7 +187,7 @@ var _ contracts.GuardContract = (*JWTGuard)(nil)
 
 // ══════════════════════════════════════════════════════════════════════
 // OAT (Opaque Access Token) Guard
-// Mirrors AdonisJS's OAT guard (API tokens stored in database/Redis).
+// Mirrors Astra's OAT guard (API tokens stored in database/Redis).
 // ══════════════════════════════════════════════════════════════════════
 
 // TokenStore is the interface for storing opaque tokens.
@@ -304,7 +304,7 @@ var _ contracts.GuardContract = (*OATGuard)(nil)
 
 // ══════════════════════════════════════════════════════════════════════
 // Auth Manager
-// Manages multiple auth guards. Mirrors AdonisJS's Auth module.
+// Manages multiple auth guards. Mirrors Astra's Auth module.
 // ══════════════════════════════════════════════════════════════════════
 
 // AuthManager holds all configured guards.

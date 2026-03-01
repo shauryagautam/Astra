@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func registerAdvancedEvents(app contracts.ApplicationContract) {

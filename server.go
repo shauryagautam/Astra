@@ -1,5 +1,5 @@
-// File: server.go — The main entry point for the Adonis Go framework.
-// This is the equivalent of AdonisJS's server.ts file.
+// File: server.go — The main entry point for the Astra Go framework.
+// This is the equivalent of Astra's server.ts file.
 //
 // It bootstraps the Application, registers Service Providers,
 // triggers the lifecycle (register → boot → ready), registers routes
@@ -20,12 +20,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shaurya/adonis/app"
-	adonisHttp "github.com/shaurya/adonis/app/Http"
-	"github.com/shaurya/adonis/config"
-	"github.com/shaurya/adonis/contracts"
-	"github.com/shaurya/adonis/providers"
-	"github.com/shaurya/adonis/start"
+	"github.com/shaurya/astra/app"
+	astraHttp "github.com/shaurya/astra/app/Http"
+	"github.com/shaurya/astra/config"
+	"github.com/shaurya/astra/contracts"
+	"github.com/shaurya/astra/providers"
+	"github.com/shaurya/astra/start"
 )
 
 func main() {
@@ -33,13 +33,13 @@ func main() {
 	// ║  1. Create the Application (The IoC Container)                   ║
 	// ╚═══════════════════════════════════════════════════════════════════╝
 	application := app.NewApplication(".")
-	application.SetAppName("AdonisGo")
+	application.SetAppName("Astra")
 
 	// ╔═══════════════════════════════════════════════════════════════════╗
 	// ║  2. Load Configuration                                           ║
 	// ╚═══════════════════════════════════════════════════════════════════╝
 	appConfig := config.DefaultAppConfig()
-	appConfig.Name = "AdonisGo"
+	appConfig.Name = "Astra"
 
 	corsConfig := config.DefaultCorsConfig()
 
@@ -52,14 +52,14 @@ func main() {
 	}
 
 	// Register config in the container
-	application.Singleton("Adonis/Core/Config", func(c contracts.ContainerContract) (any, error) {
+	application.Singleton("Astra/Core/Config", func(c contracts.ContainerContract) (any, error) {
 		return &appConfig, nil
 	})
-	application.Alias("Config", "Adonis/Core/Config")
+	application.Alias("Config", "Astra/Core/Config")
 
 	// ╔═══════════════════════════════════════════════════════════════════╗
 	// ║  3. Register Service Providers                                   ║
-	// ║  Mirrors AdonisJS's .adonisrc.json providers array               ║
+	// ║  Mirrors Astra's .astrarc.json providers array               ║
 	// ╚═══════════════════════════════════════════════════════════════════╝
 	application.RegisterProviders([]contracts.ServiceProviderContract{
 		providers.NewAppProvider(application),
@@ -76,13 +76,13 @@ func main() {
 
 	// ╔═══════════════════════════════════════════════════════════════════╗
 	// ║  5. Register Routes & Middleware                                  ║
-	// ║  Mirrors AdonisJS's start/routes.ts and start/kernel.ts          ║
+	// ║  Mirrors Astra's start/routes.ts and start/kernel.ts          ║
 	// ╚═══════════════════════════════════════════════════════════════════╝
 	start.RegisterMiddleware(application, corsConfig)
 	start.RegisterRoutes(application)
 
 	// Commit routes (finalizes the route tree)
-	router := application.Use("Route").(*adonisHttp.Router)
+	router := application.Use("Route").(*astraHttp.Router)
 	router.Commit()
 
 	// Print registered routes
@@ -99,7 +99,7 @@ func main() {
 	// ╔═══════════════════════════════════════════════════════════════════╗
 	// ║  7. Start the HTTP Server                                        ║
 	// ╚═══════════════════════════════════════════════════════════════════╝
-	server := application.Use("Server").(*adonisHttp.Server)
+	server := application.Use("Server").(*astraHttp.Server)
 	addr := fmt.Sprintf("%s:%d", appConfig.Host, appConfig.Port)
 
 	// Print the startup banner
@@ -134,7 +134,7 @@ func main() {
 	fmt.Println("👋 Goodbye!")
 }
 
-// printBanner prints the Adonis Go startup banner.
+// printBanner prints the Astra Go startup banner.
 func printBanner(cfg config.AppConfig) {
 	banner := `
 ╔═══════════════════════════════════════════════════════════╗

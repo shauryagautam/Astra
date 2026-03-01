@@ -10,7 +10,7 @@ type EventContract interface {
 type ListenerFunc func(data any) error
 
 // EventDispatcherContract defines the event manager.
-// Mirrors AdonisJS's Event provider.
+// Mirrors Astra's Event provider.
 type EventDispatcherContract interface {
 	// On registers a listener for an event.
 	On(event string, listener ListenerFunc)

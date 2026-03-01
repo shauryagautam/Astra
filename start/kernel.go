@@ -1,20 +1,20 @@
-// Package start — kernel.go is the equivalent of AdonisJS's start/kernel.ts.
+// Package start — kernel.go is the equivalent of Astra's start/kernel.ts.
 // It configures global and named middleware.
 package start
 
 import (
-	adonisHttp "github.com/shaurya/adonis/app/Http"
-	"github.com/shaurya/adonis/config"
-	"github.com/shaurya/adonis/contracts"
+	astraHttp "github.com/shaurya/astra/app/Http"
+	"github.com/shaurya/astra/config"
+	"github.com/shaurya/astra/contracts"
 )
 
 // RegisterMiddleware registers global and named middleware on the server.
-// Mirrors AdonisJS's start/kernel.ts.
+// Mirrors Astra's start/kernel.ts.
 //
-// In AdonisJS:
+// In Astra:
 //
 //	Server.middleware.register([
-//	  () => import('@ioc:Adonis/Core/BodyParser'),
+//	  () => import('@ioc:Astra/Core/BodyParser'),
 //	  () => import('App/Middleware/SilentAuth'),
 //	])
 //
@@ -22,11 +22,11 @@ import (
 //	  auth: () => import('App/Middleware/Auth'),
 //	})
 func RegisterMiddleware(app contracts.ApplicationContract, corsConfig config.CorsConfig) {
-	server := app.Use("Server").(*adonisHttp.Server)
+	server := app.Use("Server").(*astraHttp.Server)
 
 	// ── Global Middleware (applied to all routes) ──────────────────────
 	if corsConfig.Enabled {
-		server.Use(adonisHttp.CorsMiddleware(
+		server.Use(astraHttp.CorsMiddleware(
 			corsConfig.Origin,
 			corsConfig.Methods,
 			corsConfig.Headers,

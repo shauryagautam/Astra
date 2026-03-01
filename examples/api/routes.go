@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func registerRoutes(router contracts.RouterContract) {
@@ -12,8 +12,8 @@ func registerRoutes(router contracts.RouterContract) {
 	// Root route
 	router.Get("/", func(ctx contracts.HttpContextContract) error {
 		return ctx.Response().Json(map[string]any{
-			"framework": "AdonisGo",
-			"message":   "Welcome to the production-ready AdonisGo API! 🚀",
+			"framework": "Astra",
+			"message":   "Welcome to the production-ready Astra API! 🚀",
 		})
 	})
 

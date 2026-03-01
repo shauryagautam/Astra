@@ -1,7 +1,7 @@
 package config
 
 // CorsConfig holds CORS configuration.
-// Mirrors AdonisJS's config/cors.ts.
+// Mirrors Astra's config/cors.ts.
 type CorsConfig struct {
 	// Enabled toggles CORS handling.
 	Enabled bool
@@ -38,7 +38,7 @@ func DefaultCorsConfig() CorsConfig {
 }
 
 // HashConfig holds hashing configuration.
-// Mirrors AdonisJS's config/hash.ts.
+// Mirrors Astra's config/hash.ts.
 type HashConfig struct {
 	// Default driver: "argon2" or "bcrypt".
 	Driver string
@@ -82,7 +82,7 @@ func DefaultHashConfig() HashConfig {
 }
 
 // AuthConfig holds authentication configuration.
-// Mirrors AdonisJS's config/auth.ts.
+// Mirrors Astra's config/auth.ts.
 type AuthConfig struct {
 	// Guard is the default authentication guard.
 	Guard string
@@ -126,7 +126,7 @@ func DefaultAuthConfig() AuthConfig {
 				JWT: JWTConfig{
 					Secret: "change-me-in-production",
 					Expiry: 86400, // 24 hours
-					Issuer: "adonis",
+					Issuer: "astra",
 				},
 			},
 		},
@@ -134,7 +134,7 @@ func DefaultAuthConfig() AuthConfig {
 }
 
 // RedisConfig holds Redis configuration.
-// Mirrors AdonisJS's config/redis.ts.
+// Mirrors Astra's config/redis.ts.
 type RedisConfig struct {
 	// Connection is the default Redis connection.
 	Connection string

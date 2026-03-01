@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/shaurya/adonis/contracts"
+	"github.com/shaurya/astra/contracts"
 )
 
 func registerAdvancedRoutes(app contracts.ApplicationContract) {
@@ -21,7 +21,7 @@ func registerAdvancedRoutes(app contracts.ApplicationContract) {
 	Route.Post("/upload", func(ctx contracts.HttpContextContract) error {
 		// Mock upload
 		path := "uploads/test.txt"
-		content := []byte("Hello from AdonisGo Drive!")
+		content := []byte("Hello from Astra Drive!")
 
 		if err := Drive.Put(path, content); err != nil {
 			return err
@@ -37,7 +37,7 @@ func registerAdvancedRoutes(app contracts.ApplicationContract) {
 	Route.Post("/send-email", func(ctx contracts.HttpContextContract) error {
 		msg := contracts.MailMessage{
 			To:       []string{"user@example.com"},
-			Subject:  "Welcome to AdonisGo!",
+			Subject:  "Welcome to Astra!",
 			HtmlView: "<h1>Advanced Features</h1><p>This was sent via the Queue system.</p>",
 		}
 
