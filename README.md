@@ -1,6 +1,4 @@
 <div align="center">
-  <img src="docs/src/assets/houston.webp" alt="Astra Framework" width="120" />
-
   # ⚡ Astra
 
   **The Elegant, Powerful, and Production-Ready Web Framework for Go.**
