@@ -35,22 +35,18 @@ Astra is not just another routing library; it is a **batteries-included, opinion
 
 Astra requires **Go 1.22+**.
 
+To start using Astra in your project, initialize your Go module and fetch the framework:
+
 ```bash
-# 1. Clone the starting scaffolding
-git clone https://github.com/shaurya/astra.git my-app
-cd my-app
+# 1. Initialize your project
+mkdir my-app && cd my-app
+go mod init my-app
 
-# 2. Fetch the Go modules
-go mod tidy
+# 2. Install the Astra Framework
+go get -u github.com/shaurya/astra
 
-# 3. Configure your local environment
-cp .env.example .env
-
-# 4. Boot the Astra server!
-go run cmd/astra/main.go serve --watch
+# 3. Import and configure your server inside your main.go!
 ```
-
-Server booted successfully? Visit `http://localhost:3333/health` to view your infrastructure liveness payload.
 
 ---
 
