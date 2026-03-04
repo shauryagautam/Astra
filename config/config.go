@@ -1,167 +1,144 @@
+// Package config provides typed configuration loading for Astra applications.
+// It loads environment variables from .env files and provides type-safe getters.
 package config
 
-// CorsConfig holds CORS configuration.
-// Mirrors Astra's config/cors.ts.
-type CorsConfig struct {
-	// Enabled toggles CORS handling.
-	Enabled bool
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 
-	// Origin specifies allowed origins ("*" for all).
-	Origin []string
+	"github.com/joho/godotenv"
+)
 
-	// Methods specifies allowed HTTP methods.
-	Methods []string
-
-	// Headers specifies allowed request headers.
-	Headers []string
-
-	// ExposeHeaders specifies headers exposed to the client.
-	ExposeHeaders []string
-
-	// Credentials allows cookies/auth in CORS.
-	Credentials bool
-
-	// MaxAge is the preflight cache duration in seconds.
-	MaxAge int
+// Config holds loaded environment variables and provides typed access.
+type Config struct {
+	env map[string]string
 }
 
-// DefaultCorsConfig returns sensible defaults.
-func DefaultCorsConfig() CorsConfig {
-	return CorsConfig{
-		Enabled:     true,
-		Origin:      []string{"*"},
-		Methods:     []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"},
-		Headers:     []string{"Content-Type", "Accept", "Authorization", "X-Requested-With"},
-		Credentials: true,
-		MaxAge:      86400,
+// Load creates a new Config by loading environment variables from the given
+// .env file paths. If no paths are provided, it attempts to load ".env".
+// Environment variables already set in the system take precedence.
+func Load(paths ...string) (*Config, error) {
+	if len(paths) == 0 {
+		paths = []string{".env"}
+	}
+
+	// godotenv does NOT override existing env vars
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			if err := godotenv.Load(path); err != nil {
+				return nil, fmt.Errorf("config.Load: failed to load %s: %w", path, err)
+			}
+		}
+	}
+
+	return &Config{env: envToMap()}, nil
+}
+
+// MustLoad is like Load but panics on error.
+func MustLoad(paths ...string) *Config {
+	cfg, err := Load(paths...)
+	if err != nil {
+		panic(fmt.Sprintf("config.MustLoad: %v", err))
+	}
+	return cfg
+}
+
+// String returns the value for the given key, or the default if not set.
+func (c *Config) String(key string, def string) string {
+	if val, ok := c.env[key]; ok && val != "" {
+		return val
+	}
+	// Also check live env (in case it was set after Load)
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return def
+}
+
+// Int returns the integer value for the given key, or the default if not set or invalid.
+func (c *Config) Int(key string, def int) int {
+	raw := c.String(key, "")
+	if raw == "" {
+		return def
+	}
+	val, err := strconv.Atoi(raw)
+	if err != nil {
+		return def
+	}
+	return val
+}
+
+// Int32 returns the int32 value for the given key, or the default if not set or invalid.
+func (c *Config) Int32(key string, def int32) int32 {
+	raw := c.String(key, "")
+	if raw == "" {
+		return def
+	}
+	val, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return def
+	}
+	return int32(val)
+}
+
+// Bool returns the boolean value for the given key, or the default if not set.
+// Truthy values: "true", "1", "yes", "on" (case-insensitive).
+func (c *Config) Bool(key string, def bool) bool {
+	raw := c.String(key, "")
+	if raw == "" {
+		return def
+	}
+	switch strings.ToLower(raw) {
+	case "true", "1", "yes", "on":
+		return true
+	case "false", "0", "no", "off":
+		return false
+	default:
+		return def
 	}
 }
 
-// HashConfig holds hashing configuration.
-// Mirrors Astra's config/hash.ts.
-type HashConfig struct {
-	// Default driver: "argon2" or "bcrypt".
-	Driver string
-
-	// Argon2 settings
-	Argon2 Argon2Config
-
-	// Bcrypt settings
-	Bcrypt BcryptConfig
-}
-
-// Argon2Config holds Argon2id settings.
-type Argon2Config struct {
-	Memory      uint32
-	Iterations  uint32
-	Parallelism uint8
-	SaltLength  uint32
-	KeyLength   uint32
-}
-
-// BcryptConfig holds Bcrypt settings.
-type BcryptConfig struct {
-	Rounds int
-}
-
-// DefaultHashConfig returns sensible defaults.
-func DefaultHashConfig() HashConfig {
-	return HashConfig{
-		Driver: "argon2",
-		Argon2: Argon2Config{
-			Memory:      65536,
-			Iterations:  3,
-			Parallelism: 2,
-			SaltLength:  16,
-			KeyLength:   32,
-		},
-		Bcrypt: BcryptConfig{
-			Rounds: 10,
-		},
+// Duration returns the time.Duration value for the given key, or the default.
+// Accepts Go duration strings like "30s", "5m", "1h".
+func (c *Config) Duration(key string, def time.Duration) time.Duration {
+	raw := c.String(key, "")
+	if raw == "" {
+		return def
 	}
-}
-
-// AuthConfig holds authentication configuration.
-// Mirrors Astra's config/auth.ts.
-type AuthConfig struct {
-	// Guard is the default authentication guard.
-	Guard string
-
-	// Guards holds all configured guards.
-	Guards map[string]GuardConfig
-}
-
-// GuardConfig configures a single auth guard.
-type GuardConfig struct {
-	// Driver: "jwt", "oat" (opaque access token), "session".
-	Driver string
-
-	// Provider is the user provider name.
-	Provider string
-
-	// JWT-specific settings
-	JWT JWTConfig
-}
-
-// JWTConfig holds JWT guard settings.
-type JWTConfig struct {
-	// Secret is the JWT signing key.
-	Secret string
-
-	// Expiry is the token lifetime in seconds.
-	Expiry int
-
-	// Issuer is the JWT issuer claim.
-	Issuer string
-}
-
-// DefaultAuthConfig returns sensible defaults.
-func DefaultAuthConfig() AuthConfig {
-	return AuthConfig{
-		Guard: "api",
-		Guards: map[string]GuardConfig{
-			"api": {
-				Driver:   "jwt",
-				Provider: "user",
-				JWT: JWTConfig{
-					Secret: "change-me-in-production",
-					Expiry: 86400, // 24 hours
-					Issuer: "astra",
-				},
-			},
-		},
+	val, err := time.ParseDuration(raw)
+	if err != nil {
+		return def
 	}
+	return val
 }
 
-// RedisConfig holds Redis configuration.
-// Mirrors Astra's config/redis.ts.
-type RedisConfig struct {
-	// Connection is the default Redis connection.
-	Connection string
-
-	// Connections holds all Redis connections.
-	Connections map[string]RedisConnectionConfig
+// IsDev returns true if APP_ENV is "development" or "dev".
+func (c *Config) IsDev() bool {
+	env := strings.ToLower(c.String("APP_ENV", "development"))
+	return env == "development" || env == "dev"
 }
 
-// RedisConnectionConfig holds a single Redis connection's settings.
-type RedisConnectionConfig struct {
-	Host     string
-	Port     int
-	Password string
-	DB       int
+// IsProd returns true if APP_ENV is "production" or "prod".
+func (c *Config) IsProd() bool {
+	env := strings.ToLower(c.String("APP_ENV", "development"))
+	return env == "production" || env == "prod"
 }
 
-// DefaultRedisConfig returns sensible defaults.
-func DefaultRedisConfig() RedisConfig {
-	return RedisConfig{
-		Connection: "local",
-		Connections: map[string]RedisConnectionConfig{
-			"local": {
-				Host:     "127.0.0.1",
-				Port:     6379,
-				Password: "",
-				DB:       0,
-			},
-		},
+// IsTest returns true if APP_ENV is "test" or "testing".
+func (c *Config) IsTest() bool {
+	env := strings.ToLower(c.String("APP_ENV", "development"))
+	return env == "test" || env == "testing"
+}
+
+// envToMap returns all current environment variables as a map.
+func envToMap() map[string]string {
+	m := make(map[string]string)
+	for _, entry := range os.Environ() {
+		k, v, _ := strings.Cut(entry, "=")
+		m[k] = v
 	}
+	return m
 }

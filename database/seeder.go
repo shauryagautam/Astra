@@ -1,77 +1,84 @@
+// Package database provides the seeder infrastructure for populating
+// the database with test or production seed data.
 package database
 
 import (
+	"context"
 	"fmt"
-	"log"
-	"os"
+	"sort"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Seeder represents a single database seeder.
-// Mirrors Astra's seeder files.
-type Seeder struct {
-	// Name is the seeder name.
-	Name string
-
-	// Run executes the seeder.
-	Run func(db *gorm.DB) error
+// Seeder defines the interface that all seeders must implement.
+type Seeder interface {
+	// Name returns the unique name of this seeder (e.g. "01_users").
+	Name() string
+	// Run executes the seeder, inserting or upserting seed data.
+	Run(ctx context.Context, db *pgxpool.Pool) error
 }
 
-// SeederRunner manages running database seeders.
+// SeederRunner manages and executes registered seeders.
 type SeederRunner struct {
-	db      *gorm.DB
 	seeders []Seeder
-	logger  *log.Logger
+	index   map[string]Seeder
 }
 
-// NewSeederRunner creates a new seeder runner.
-func NewSeederRunner(db *gorm.DB) *SeederRunner {
+// NewSeederRunner creates a new SeederRunner.
+func NewSeederRunner() *SeederRunner {
 	return &SeederRunner{
-		db:      db,
-		seeders: make([]Seeder, 0),
-		logger:  log.New(os.Stdout, "[astra:seeder] ", log.LstdFlags),
+		index: make(map[string]Seeder),
 	}
 }
 
-// Add registers seeders.
-func (r *SeederRunner) Add(seeders ...Seeder) {
-	r.seeders = append(r.seeders, seeders...)
+// Register adds one or more seeders to the runner in order.
+func (r *SeederRunner) Register(seeders ...Seeder) {
+	for _, s := range seeders {
+		if _, exists := r.index[s.Name()]; !exists {
+			r.seeders = append(r.seeders, s)
+			r.index[s.Name()] = s
+		}
+	}
 }
 
-// Run executes all registered seeders.
-// Mirrors: node ace db:seed
-func (r *SeederRunner) Run() error {
+// Run executes all registered seeders in the order they were registered.
+func (r *SeederRunner) Run(ctx context.Context, db *pgxpool.Pool) error {
 	if len(r.seeders) == 0 {
-		r.logger.Println("No seeders registered")
+		fmt.Println("  No seeders registered.")
 		return nil
 	}
 
-	r.logger.Printf("🌱 Running %d seeder(s)...", len(r.seeders))
-
-	for _, seeder := range r.seeders {
-		r.logger.Printf("▶ Seeding: %s", seeder.Name)
-		if err := seeder.Run(r.db); err != nil {
-			return fmt.Errorf("seeder '%s' failed: %w", seeder.Name, err)
+	for _, s := range r.seeders {
+		fmt.Printf("  Seeding: %s\n", s.Name())
+		if err := s.Run(ctx, db); err != nil {
+			return fmt.Errorf("seeder %q failed: %w", s.Name(), err)
 		}
-		r.logger.Printf("✅ Completed: %s", seeder.Name)
+		fmt.Printf("  ✓ Done:   %s\n", s.Name())
 	}
-
-	r.logger.Println("✅ All seeders completed")
 	return nil
 }
 
-// RunByName runs a specific seeder by name.
-func (r *SeederRunner) RunByName(name string) error {
-	for _, seeder := range r.seeders {
-		if seeder.Name == name {
-			r.logger.Printf("🌱 Running seeder: %s", name)
-			if err := seeder.Run(r.db); err != nil {
-				return fmt.Errorf("seeder '%s' failed: %w", name, err)
-			}
-			r.logger.Printf("✅ Completed: %s", name)
-			return nil
-		}
+// RunByName runs a specific seeder by its registered name.
+func (r *SeederRunner) RunByName(ctx context.Context, db *pgxpool.Pool, name string) error {
+	s, ok := r.index[name]
+	if !ok {
+		available := r.Names()
+		return fmt.Errorf("seeder %q not found. Available: %v", name, available)
 	}
-	return fmt.Errorf("seeder '%s' not found", name)
+	fmt.Printf("  Seeding: %s\n", s.Name())
+	if err := s.Run(ctx, db); err != nil {
+		return fmt.Errorf("seeder %q failed: %w", name, err)
+	}
+	fmt.Printf("  ✓ Done:   %s\n", s.Name())
+	return nil
+}
+
+// Names returns all registered seeder names, sorted alphabetically.
+func (r *SeederRunner) Names() []string {
+	names := make([]string, 0, len(r.index))
+	for k := range r.index {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
