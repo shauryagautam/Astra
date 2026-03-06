@@ -220,6 +220,51 @@ func defaultFuncMap() template.FuncMap {
 			}
 			return b
 		},
+
+		// Asset helpers
+		"asset_path": func(path string) string {
+			return "/static/" + strings.TrimPrefix(path, "/")
+		},
+		"asset_tag": func(path string) template.HTML {
+			ext := filepath.Ext(path)
+			fullPath := "/static/" + strings.TrimPrefix(path, "/")
+			switch ext {
+			case ".css":
+				return template.HTML(fmt.Sprintf(`<link rel="stylesheet" href="%s">`, fullPath))
+			case ".js":
+				return template.HTML(fmt.Sprintf(`<script src="%s"></script>`, fullPath))
+			default:
+				return ""
+			}
+		},
+
+		// CSRF helpers - These will work if the data contains "CSRFToken"
+		"csrf_token": func(data any) string {
+			if m, ok := data.(map[string]any); ok {
+				if t, ok := m["CSRFToken"].(string); ok {
+					return t
+				}
+			}
+			return ""
+		},
+		"csrf_field": func(data any) template.HTML {
+			if m, ok := data.(map[string]any); ok {
+				if t, ok := m["CSRFToken"].(string); ok {
+					return template.HTML(fmt.Sprintf(`<input type="hidden" name="astra_csrf" value="%s">`, t))
+				}
+			}
+			return ""
+		},
+
+		// Flash helpers
+		"flash": func(data any, name string) string {
+			if m, ok := data.(map[string]any); ok {
+				if flashes, ok := m["Flashes"].(map[string]string); ok {
+					return flashes[name]
+				}
+			}
+			return ""
+		},
 	}
 }
 
@@ -247,6 +292,30 @@ func (c *Context) Render(name string, data any, status ...int) error {
 	ve, ok := engine.(ViewEngine)
 	if !ok {
 		return fmt.Errorf("views: registered 'views' service does not implement ViewEngine")
+	}
+
+	// Auto-inject CSRF token if middleware set it
+	if cookie, err := c.Request.Cookie("astra_csrf"); err == nil {
+		if m, ok := data.(map[string]any); ok {
+			m["CSRFToken"] = cookie.Value
+		}
+	}
+
+	// Auto-inject Flash messages (and clear them)
+	// We scan for all flash cookies
+	flashes := make(map[string]string)
+	for _, cookie := range c.Request.Cookies() {
+		if strings.HasPrefix(cookie.Name, flashCookiePrefix) {
+			name := strings.TrimPrefix(cookie.Name, flashCookiePrefix)
+			flashes[name] = cookie.Value
+			// Clear it
+			c.GetFlash(name)
+		}
+	}
+	if len(flashes) > 0 {
+		if m, ok := data.(map[string]any); ok {
+			m["Flashes"] = flashes
+		}
 	}
 
 	html, err := ve.Render(name, data)

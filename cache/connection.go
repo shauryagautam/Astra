@@ -11,7 +11,7 @@ import (
 
 // Redis is the cache service holding the redis client.
 type Redis struct {
-	Client *redis.Client
+	Client redis.UniversalClient
 	config config.RedisConfig
 }
 
@@ -22,27 +22,9 @@ func (r *Redis) Name() string {
 
 // Start initializes the Redis client.
 func (r *Redis) Start(ctx context.Context) error {
-	var opts *redis.Options
-	if r.config.URL != "" {
-		opt, err := redis.ParseURL(r.config.URL)
-		if err != nil {
-			return fmt.Errorf("cache: failed to parse Redis URL: %w", err)
-		}
-		opts = opt
-	} else {
-		opts = &redis.Options{
-			Addr:       fmt.Sprintf("%s:%d", r.config.Host, r.config.Port),
-			Password:   r.config.Password,
-			DB:         r.config.DB,
-			MaxRetries: r.config.MaxRetries,
-			PoolSize:   r.config.PoolSize,
-		}
-	}
-
-	client := redis.NewClient(opts)
-
-	if err := client.Ping(ctx).Err(); err != nil {
-		return fmt.Errorf("cache: failed to ping Redis: %w", err)
+	client, err := ConnectRedis(r.config)
+	if err != nil {
+		return err
 	}
 
 	r.Client = client
@@ -64,37 +46,46 @@ func New(cfg config.RedisConfig) *Redis {
 	}
 }
 
-// ConnectRedis creates a standalone Redis client (useful for CLI and auto-loading).
-func ConnectRedis(cfg config.RedisConfig) (*redis.Client, error) {
-	var opts *redis.Options
+// ConnectRedis creates a standalone Redis client (Universal support).
+func ConnectRedis(cfg config.RedisConfig) (redis.UniversalClient, error) {
+	var addrs []string
+	var db int
+	var password string
+
 	if cfg.URL != "" {
 		opt, err := redis.ParseURL(cfg.URL)
 		if err != nil {
 			return nil, fmt.Errorf("cache: failed to parse Redis URL: %w", err)
 		}
-		opts = opt
+		addrs = []string{opt.Addr}
+		db = opt.DB
+		password = opt.Password
 	} else {
-		opts = &redis.Options{
-			Addr:       fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-			Password:   cfg.Password,
-			DB:         cfg.DB,
-			MaxRetries: cfg.MaxRetries,
-			PoolSize:   cfg.PoolSize,
+		if cfg.UseSentinel {
+			addrs = cfg.SentinelAddrs
+		} else {
+			addrs = []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)}
 		}
+		db = cfg.DB
+		password = cfg.Password
 	}
 
-	// Upstash / production tuning
-	if opts.PoolSize == 0 {
-		opts.PoolSize = 10
+	opts := &redis.UniversalOptions{
+		Addrs:        addrs,
+		Password:     password,
+		DB:           db,
+		MaxRetries:   cfg.MaxRetries,
+		PoolSize:     cfg.PoolSize,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	}
-	if opts.MaxRetries == 0 {
-		opts.MaxRetries = 3
-	}
-	opts.DialTimeout = 5 * time.Second
-	opts.ReadTimeout = 3 * time.Second
-	opts.WriteTimeout = 3 * time.Second
 
-	client := redis.NewClient(opts)
+	if cfg.UseSentinel {
+		opts.MasterName = cfg.SentinelMaster
+	}
+
+	client := redis.NewUniversalClient(opts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

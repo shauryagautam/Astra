@@ -15,6 +15,9 @@ Astra is a production-grade Go full-stack framework inspired by AdonisJS and Rub
 - **TypeScript Codegen:** Automatically generate a type-safe API client for React/Expo.
 - **Unique Jobs:** Built-in deduplication for background tasks with `DispatchUnique`.
 - **Typed IoC:** Type-safe service retrieval using Go 1.18+ generics (`Get[T]`).
+- **Performance:** Bytedance Sonic integrated for high-performance JSON across the entire framework.
+- **SSR Engine:** Enhanced with Flash messages, Asset helpers (`asset_path`, `asset_tag`), and CSRF template integration.
+- **Advanced Redis:** Exclusive support for Redis Streams (Queue), Sentinel, and Cluster configurations via `UniversalClient`.
 
 ## Quickstart
 

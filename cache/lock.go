@@ -11,13 +11,13 @@ import (
 
 // Lock represents a distributed lock.
 type Lock struct {
-	client *redis.Client
+	client redis.UniversalClient
 	name   string
 	token  string
 }
 
 // NewLock creates a new distributed lock.
-func NewLock(client *redis.Client, name string) *Lock {
+func NewLock(client redis.UniversalClient, name string) *Lock {
 	return &Lock{
 		client: client,
 		name:   "lock:" + name,

@@ -2,10 +2,10 @@ package ws
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sync"
 
+	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -26,7 +26,7 @@ type Hub struct {
 	// Unregister requests from connections
 	unregister chan *Connection
 
-	redis *redis.Client
+	redis redis.UniversalClient
 	rChan string
 
 	stop chan struct{}
@@ -34,7 +34,7 @@ type Hub struct {
 }
 
 // NewHub creates a new Hub.
-func NewHub(redis *redis.Client, rChan string) *Hub {
+func NewHub(redis redis.UniversalClient, rChan string) *Hub {
 	return &Hub{
 		broadcast:   make(chan []byte),
 		register:    make(chan *Connection),
@@ -114,7 +114,7 @@ func (h *Hub) listenRedis() {
 			Event string `json:"event"`
 			Data  any    `json:"data"`
 		}
-		if err := json.Unmarshal([]byte(msg.Payload), &payload); err != nil {
+		if err := sonic.Unmarshal([]byte(msg.Payload), &payload); err != nil {
 			log.Printf("[Astra WS] Invalid Redis message: %v", err)
 			continue
 		}
@@ -125,7 +125,7 @@ func (h *Hub) listenRedis() {
 // BroadcastToRoom sends a message to all connections in a specific room across all nodes.
 func (h *Hub) BroadcastToRoom(room string, event string, data any) error {
 	if h.redis != nil {
-		payload, _ := json.Marshal(map[string]any{
+		payload, _ := sonic.Marshal(map[string]any{
 			"room":  room,
 			"event": event,
 			"data":  data,
@@ -140,7 +140,7 @@ func (h *Hub) broadcastToRoomLocal(room string, event string, data any) error {
 		"event": event,
 		"data":  data,
 	}
-	bytes, err := json.Marshal(msg)
+	bytes, err := sonic.Marshal(msg)
 	if err != nil {
 		return err
 	}

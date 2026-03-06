@@ -57,6 +57,11 @@ type RedisConfig struct {
 	DB         int
 	MaxRetries int
 	PoolSize   int
+	// Sentinel/Cluster support
+	UseSentinel    bool
+	SentinelMaster string
+	SentinelAddrs  []string
+	UseCluster     bool
 }
 
 // AuthConfig holds authentication settings.
@@ -198,6 +203,11 @@ func LoadFromEnv(c *Config) *AstraConfig {
 			DB:         c.Int("REDIS_DB", 0),
 			MaxRetries: c.Int("REDIS_MAX_RETRIES", 3),
 			PoolSize:   c.Int("REDIS_POOL_SIZE", 10),
+			// Sentinel/Cluster
+			UseSentinel:    c.Bool("REDIS_USE_SENTINEL", false),
+			SentinelMaster: c.String("REDIS_SENTINEL_MASTER", "mymaster"),
+			SentinelAddrs:  strings.Split(c.String("REDIS_SENTINEL_ADDRS", ""), ","),
+			UseCluster:     c.Bool("REDIS_USE_CLUSTER", false),
 		},
 		Auth: AuthConfig{
 			JWTSecret:          c.String("JWT_SECRET", ""),

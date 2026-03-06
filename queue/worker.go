@@ -2,18 +2,18 @@ package queue
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 )
 
 // Worker polls a Redis queue and processes jobs.
 type Worker struct {
-	client      *redis.Client
+	client      redis.UniversalClient
 	prefix      string
 	queues      []string
 	concurrency int
@@ -24,7 +24,7 @@ type Worker struct {
 }
 
 // NewWorker creates a new Worker.
-func NewWorker(client *redis.Client, prefix string, queues []string, concurrency int, logger *slog.Logger) *Worker {
+func NewWorker(client redis.UniversalClient, prefix string, queues []string, concurrency int, logger *slog.Logger) *Worker {
 	if len(queues) == 0 {
 		queues = []string{"default"}
 	}
@@ -104,7 +104,7 @@ func (w *Worker) work(ctx context.Context, id int) {
 
 func (w *Worker) processPayload(ctx context.Context, queueName string, data string) {
 	var p payload
-	if err := json.Unmarshal([]byte(data), &p); err != nil {
+	if err := sonic.Unmarshal([]byte(data), &p); err != nil {
 		w.logger.Error("failed to unmarshal job payload", "error", err)
 		return
 	}
@@ -117,7 +117,7 @@ func (w *Worker) processPayload(ctx context.Context, queueName string, data stri
 	}
 
 	job := factory()
-	if err := json.Unmarshal(p.Data, &job); err != nil {
+	if err := sonic.Unmarshal(p.Data, &job); err != nil {
 		w.logger.Error("failed to unmarshal job data", "error", err)
 		w.handleFailure(ctx, p, err)
 		return
@@ -142,7 +142,7 @@ func (w *Worker) handleFailure(ctx context.Context, p payload, jobErr error) {
 	if p.Attempts >= p.Retries {
 		// Max retries reached, move to failed jobs
 		w.logger.Error("job failed permanently", "name", p.Name)
-		failedData, _ := json.Marshal(p)
+		failedData, _ := sonic.Marshal(p)
 		w.client.LPush(ctx, w.prefix+"failed_jobs", failedData)
 		return
 	}
@@ -151,7 +151,7 @@ func (w *Worker) handleFailure(ctx context.Context, p payload, jobErr error) {
 	backoff := time.Duration(1<<p.Attempts) * 5 * time.Second
 
 	// Delay retry
-	pData, _ := json.Marshal(p)
+	pData, _ := sonic.Marshal(p)
 	delayedKey := w.prefix + "delayed:" + p.Name // Approximation, we don't have the original queue
 	w.client.ZAdd(ctx, delayedKey, redis.Z{
 		Score:  float64(time.Now().Add(backoff).Unix()),

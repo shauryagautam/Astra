@@ -2,10 +2,10 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -44,7 +44,7 @@ func (d *RedisSessionDriver) Get(ctx context.Context, id string) (map[string]any
 	}
 
 	var data map[string]any
-	if err := json.Unmarshal([]byte(val), &data); err != nil {
+	if err := sonic.Unmarshal([]byte(val), &data); err != nil {
 		return nil, err
 	}
 	return data, nil
@@ -52,7 +52,7 @@ func (d *RedisSessionDriver) Get(ctx context.Context, id string) (map[string]any
 
 // Set stores a session.
 func (d *RedisSessionDriver) Set(ctx context.Context, id string, data map[string]any, ttl time.Duration) error {
-	bytes, err := json.Marshal(data)
+	bytes, err := sonic.Marshal(data)
 	if err != nil {
 		return err
 	}

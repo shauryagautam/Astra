@@ -2,25 +2,25 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 )
 
 // Store provides generic caching methods over Redis.
 type Store struct {
-	client *redis.Client
+	client redis.UniversalClient
 }
 
 // NewStore creates a new cache store.
-func NewStore(client *redis.Client) *Store {
+func NewStore(client redis.UniversalClient) *Store {
 	return &Store{client: client}
 }
 
 // Set stores a value in the cache with an expiration.
 func (s *Store) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
-	bytes, err := json.Marshal(value)
+	bytes, err := sonic.Marshal(value)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (s *Store) Get(ctx context.Context, key string, dest any) error {
 		}
 		return err
 	}
-	return json.Unmarshal(bytes, dest)
+	return sonic.Unmarshal(bytes, dest)
 }
 
 // GetString retrieves a string from the cache.
@@ -80,7 +80,7 @@ func (s *Store) Decrement(ctx context.Context, key string) (int64, error) {
 func (s *Store) MSet(ctx context.Context, items map[string]any, expiration time.Duration) error {
 	pipe := s.client.Pipeline()
 	for k, v := range items {
-		bytes, err := json.Marshal(v)
+		bytes, err := sonic.Marshal(v)
 		if err != nil {
 			return err
 		}

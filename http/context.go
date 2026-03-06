@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/astraframework/astra/core"
 	"github.com/astraframework/astra/storage"
+	"github.com/bytedance/sonic"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -20,7 +20,8 @@ import (
 type contextKey string
 
 const (
-	authUserKey contextKey = "astra_auth_user"
+	authUserKey   contextKey = "astra_auth_user"
+	flashPrefix   = "astra_flash_"
 )
 
 // Context is the central request context object passed to all Astra handlers.
@@ -89,7 +90,7 @@ func (c *Context) Bind(v any) error {
 		return NewHTTPError(http.StatusBadRequest, "EMPTY_BODY", "request body is empty")
 	}
 
-	if err := json.Unmarshal(body, v); err != nil {
+	if err := sonic.Unmarshal(body, v); err != nil {
 		return NewHTTPError(http.StatusBadRequest, "INVALID_JSON", "malformed JSON in request body")
 	}
 
@@ -177,7 +178,7 @@ func (c *Context) JSON(data any, status ...int) error {
 	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	c.Writer.WriteHeader(code)
 	c.written = true
-	return json.NewEncoder(c.Writer).Encode(data)
+	return sonic.ConfigDefault.NewEncoder(c.Writer).Encode(data)
 }
 
 // Error sends a structured JSON error response.
@@ -258,6 +259,43 @@ func (c *Context) File(filepath string) error {
 	http.ServeFile(c.Writer, c.Request, filepath)
 	c.written = true
 	return nil
+}
+
+// ─── Flash Messages ───────────────────────────────────────────────────
+
+const flashCookiePrefix = "astra_flash_"
+
+// Flash sets a flash message that persists only for the next request.
+// It uses an HTTP-only cookie.
+func (c *Context) Flash(name string, value string) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     flashCookiePrefix + name,
+		Value:    value,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   c.Request.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   3600, // 1 hour is plenty for a flash message
+	})
+}
+
+// GetFlash retrieves a flash message and clears it.
+func (c *Context) GetFlash(name string) string {
+	cookie, err := c.Request.Cookie(flashCookiePrefix + name)
+	if err != nil {
+		return ""
+	}
+
+	// Clear the cookie immediately
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     flashCookiePrefix + name,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1,
+	})
+
+	return cookie.Value
 }
 
 // FormFile returns the uploaded file for the given form field.
