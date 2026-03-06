@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,7 +39,7 @@ func dbMigrateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer res.Pool.Close()
+			defer res.Stop(cmd.Context())
 
 			fmt.Println("Running migrations...")
 			return runner.Run(cmd.Context())
@@ -56,7 +57,7 @@ func dbRollbackCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer res.Pool.Close()
+			defer res.Stop(cmd.Context())
 
 			fmt.Printf("Rolling back last %d migration(s)...\n", steps)
 			return runner.RollbackN(cmd.Context(), steps)
@@ -75,7 +76,7 @@ func dbStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer res.Pool.Close()
+			defer res.Stop(cmd.Context())
 
 			applied, pending, err := runner.Status(cmd.Context())
 			if err != nil {
@@ -111,7 +112,7 @@ func dbFreshCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer res.Pool.Close()
+			defer res.Stop(cmd.Context())
 
 			fmt.Println("Dropping all tables and re-running migrations...")
 			return runner.Fresh(cmd.Context())
@@ -133,7 +134,8 @@ func dbSeedCmd() *cobra.Command {
 			}
 			cfg := config.LoadFromEnv(rawCfg)
 
-			pool, err := db.Connect(cfg.Database)
+			// db.Connect now returns (*gorm.DB, *pgxpool.Pool, error)
+			_, pool, err := db.Connect(cmd.Context(), cfg.Database)
 			if err != nil {
 				return err
 			}
@@ -163,7 +165,7 @@ func setupMigrationRunner() (*db.DB, *migrations.Runner, error) {
 	}
 	cfg := config.LoadFromEnv(rawCfg)
 
-	pool, err := db.Connect(cfg.Database)
+	orm, pool, err := db.Connect(context.Background(), cfg.Database)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -174,7 +176,7 @@ func setupMigrationRunner() (*db.DB, *migrations.Runner, error) {
 	}
 
 	runner := migrations.NewRunner(pool, dir, nil)
-	return &db.DB{Pool: pool}, runner, nil
+	return &db.DB{Orm: orm, Pool: pool}, runner, nil
 }
 
 // MakeMigrationCmd returns a command to generate a new migration file.

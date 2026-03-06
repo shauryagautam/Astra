@@ -13,7 +13,8 @@ import (
 func existsRule(db *pgxpool.Pool) validator.Func {
 	return func(fl validator.FieldLevel) bool {
 		if db == nil {
-			return true
+			fmt.Println("validate.existsRule: db pool is nil")
+			return false
 		}
 		param := fl.Param()
 		parts := strings.Split(param, ".")
@@ -39,7 +40,8 @@ func existsRule(db *pgxpool.Pool) validator.Func {
 func uniqueRule(db *pgxpool.Pool) validator.Func {
 	return func(fl validator.FieldLevel) bool {
 		if db == nil {
-			return true
+			fmt.Println("validate.uniqueRule: db pool is nil")
+			return false
 		}
 		param := fl.Param()
 		parts := strings.Split(param, ":")

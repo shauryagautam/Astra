@@ -1,0 +1,14 @@
+package {{ .Package }}
+
+import (
+	"time"
+)
+
+// {{ .Name }} represents a {{ .NameLower }} record.
+type {{ .Name }} struct {
+	ID        string     `json:"id" db:"id"`
+	{{ range .Fields }}{{ .FieldName }}  {{ .GoType }}  `json:"{{ .JSONName }}" db:"{{ .DBName }}"`
+	{{ end }}CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+}

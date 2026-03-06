@@ -1,0 +1,13 @@
+package {{ .Package }}
+
+// {{ .Name }}Event is emitted when a {{ .NameLower }} action occurs.
+type {{ .Name }}Event struct {
+	// TODO: add event payload fields
+}
+
+// Register{{ .Name }}Listeners registers all listeners for {{ .NameLower }} events.
+// Call this in your application bootstrap.
+//
+//   events.On[{{ .Name }}Event](emitter, "{{ .NameSnake }}", func(e {{ .Name }}Event) {
+//       // Handle event
+//   })

@@ -1,0 +1,48 @@
+package {{ .Package }}
+
+import (
+	"github.com/astraframework/astra/http"
+)
+
+// {{ .Name }}Policy defines authorization rules for {{ .NameLower }} resources.
+type {{ .Name }}Policy struct{}
+
+// CanView checks if the user can view the {{ .NameLower }}.
+func (p *{{ .Name }}Policy) CanView(c *http.Context, resource any) bool {
+	user := c.AuthUser()
+	if user == nil {
+		return false
+	}
+	// TODO: implement view authorization logic
+	return true
+}
+
+// CanCreate checks if the user can create a {{ .NameLower }}.
+func (p *{{ .Name }}Policy) CanCreate(c *http.Context) bool {
+	user := c.AuthUser()
+	if user == nil {
+		return false
+	}
+	// TODO: implement create authorization logic
+	return true
+}
+
+// CanUpdate checks if the user can update the {{ .NameLower }}.
+func (p *{{ .Name }}Policy) CanUpdate(c *http.Context, resource any) bool {
+	user := c.AuthUser()
+	if user == nil {
+		return false
+	}
+	// TODO: implement update authorization logic
+	return true
+}
+
+// CanDelete checks if the user can delete the {{ .NameLower }}.
+func (p *{{ .Name }}Policy) CanDelete(c *http.Context, resource any) bool {
+	user := c.AuthUser()
+	if user == nil {
+		return false
+	}
+	// TODO: implement delete authorization logic
+	return true
+}

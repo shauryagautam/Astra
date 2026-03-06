@@ -76,9 +76,60 @@ func (s *Store) Decrement(ctx context.Context, key string) (int64, error) {
 	return s.client.Decr(ctx, key).Result()
 }
 
+// MSet stores multiple values in the cache with the same expiration.
+func (s *Store) MSet(ctx context.Context, items map[string]any, expiration time.Duration) error {
+	pipe := s.client.Pipeline()
+	for k, v := range items {
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		pipe.Set(ctx, k, bytes, expiration)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// MGet retrieves multiple values from the cache.
+func (s *Store) MGet(ctx context.Context, keys []string) (map[string][]byte, error) {
+	pipe := s.client.Pipeline()
+	for _, k := range keys {
+		pipe.Get(ctx, k)
+	}
+	cmds, _ := pipe.Exec(ctx)
+
+	results := make(map[string][]byte)
+	for i, cmd := range cmds {
+		if getCmd, ok := cmd.(*redis.StringCmd); ok {
+			bytes, err := getCmd.Bytes()
+			if err == nil {
+				results[keys[i]] = bytes
+			}
+		}
+	}
+	return results, nil
+}
+
 // Flush removes all keys from the cache (flushes the current DB).
 func (s *Store) Flush(ctx context.Context) error {
 	return s.client.FlushDB(ctx).Err()
+}
+
+// Remember retrieves an item from the cache, or executes the given function and stores the result.
+func Remember[T any](ctx context.Context, s *Store, key string, expiration time.Duration, fn func() (T, error)) (T, error) {
+	var val T
+	err := s.Get(ctx, key, &val)
+	if err == nil {
+		return val, nil
+	}
+
+	val, err = fn()
+	if err != nil {
+		return val, err
+	}
+
+	err = s.Set(ctx, key, val, expiration)
+	return val, err
 }
 
 // TaggedStore provides tagged caching methods over Redis.

@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/astraframework/astra/config"
 	"github.com/gorilla/websocket"
 )
 
 var defaultUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Configurable in production
-	},
 }
 
 // Upgrader handles upgrading HTTP requests to WebSockets.
@@ -22,9 +20,26 @@ type Upgrader struct {
 }
 
 // NewUpgrader creates a new WS upgrader.
-func NewUpgrader(hub *Hub) *Upgrader {
+func NewUpgrader(hub *Hub, wsConfig config.WSConfig, isDev bool) *Upgrader {
+	upgrader := defaultUpgrader
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		if isDev {
+			return true
+		}
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return false
+		}
+		for _, allowed := range wsConfig.AllowedOrigins {
+			if origin == allowed {
+				return true
+			}
+		}
+		return false
+	}
+
 	return &Upgrader{
-		upgrader: defaultUpgrader,
+		upgrader: upgrader,
 		hub:      hub,
 	}
 }

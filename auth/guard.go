@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -40,6 +41,11 @@ func (g *JWTGuard) Attempt(c *http.Context) error {
 	}
 
 	c.SetAuthUser(claims)
+	
+	// Also set in the standard request context for GraphQL and others to use via auth.GetAuthUser
+	ctx := context.WithValue(c.Request.Context(), UserKey, claims)
+	c.Request = c.Request.WithContext(ctx)
+	
 	return nil
 }
 
@@ -82,9 +88,15 @@ func (g *CookieGuard) Attempt(c *http.Context) error {
 		userID = fmt.Sprintf("%v", userIDMatches)
 	}
 
-	c.SetAuthUser(&http.AuthClaims{
+	claims := &http.AuthClaims{
 		UserID: userID,
-	})
+	}
+	c.SetAuthUser(claims)
+	
+	// Also set in the standard request context
+	ctx := context.WithValue(c.Request.Context(), UserKey, claims)
+	c.Request = c.Request.WithContext(ctx)
+	
 	return nil
 }
 

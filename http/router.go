@@ -5,6 +5,7 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/astraframework/astra/core"
@@ -18,14 +19,16 @@ type HandlerFunc func(c *Context) error
 // MiddlewareFunc is Astra's middleware signature.
 type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 
-// ResourceController defines the interface for RESTful resource controllers.
-type ResourceController interface {
-	Index(c *Context) error
-	Store(c *Context) error
-	Show(c *Context) error
-	Update(c *Context) error
-	Destroy(c *Context) error
-}
+// Resource routes are bound automatically based on which standard
+// methods the given controller struct implements: Index, Store, Show, Update, Destroy.
+// The controller can be any struct.
+type (
+	hasIndex   interface{ Index(c *Context) error }
+	hasStore   interface{ Store(c *Context) error }
+	hasShow    interface{ Show(c *Context) error }
+	hasUpdate  interface{ Update(c *Context) error }
+	hasDestroy interface{ Destroy(c *Context) error }
+)
 
 // Router wraps chi.Router with Astra's error-returning handler pattern
 // and convenience methods for route groups and resource routes.
@@ -54,7 +57,7 @@ func (r *Route) Name(name string) *Route {
 
 // NewRouter creates a new Router backed by chi.
 func NewRouter(app *core.App) *Router {
-	return &Router{
+	r := &Router{
 		mux:         chi.NewRouter(),
 		App:         app,
 		middleware:  make([]MiddlewareFunc, 0),
@@ -81,6 +84,30 @@ func NewRouter(app *core.App) *Router {
 			}, status)
 		},
 	}
+	
+	// Apply global security middleware (SecureHeaders)
+	r.Use(func(next HandlerFunc) HandlerFunc {
+		return func(c *Context) error {
+			c.SetHeader("X-Content-Type-Options", "nosniff")
+			c.SetHeader("X-Frame-Options", "DENY")
+			c.SetHeader("X-XSS-Protection", "1; mode=block")
+			c.SetHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+			c.SetHeader("Content-Security-Policy", "default-src 'self'")
+			return next(c)
+		}
+	})
+	r.Use(func(next HandlerFunc) HandlerFunc {
+		return func(c *Context) error {
+			var limit int64 = 10 * 1024 * 1024 // 10MB default
+			if c.App != nil && c.App.Config != nil && c.App.Config.App.MaxBodySize > 0 {
+				limit = c.App.Config.App.MaxBodySize
+			}
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+			return next(c)
+		}
+	})
+
+	return r
 }
 
 // SetErrorHandler sets a custom error handler for the router.
@@ -189,27 +216,65 @@ func (r *Router) Group(pattern string, fn func(r *Router)) {
 }
 
 // Resource registers RESTful resource routes for a controller.
+// It detects which standard methods the controller implements (Index, Store, Show, Update, Destroy)
+// and maps them automatically.
 //
-// Generates:
+// Detects:
 //
 //	GET    /pattern          → controller.Index
 //	POST   /pattern          → controller.Store
 //	GET    /pattern/{id}     → controller.Show
 //	PUT    /pattern/{id}     → controller.Update
+//	PATCH  /pattern/{id}     → controller.Update
 //	DELETE /pattern/{id}     → controller.Destroy
-func (r *Router) Resource(pattern string, controller ResourceController) {
+func (r *Router) Resource(pattern string, controller any) {
 	pattern = "/" + strings.Trim(pattern, "/")
-	r.Get(pattern, controller.Index)
-	r.Post(pattern, controller.Store)
-	r.Get(pattern+"/{id}", controller.Show)
-	r.Put(pattern+"/{id}", controller.Update)
-	r.Patch(pattern+"/{id}", controller.Update)
-	r.Delete(pattern+"/{id}", controller.Destroy)
+	
+	if ctrl, ok := controller.(hasIndex); ok {
+		r.Get(pattern, ctrl.Index)
+	}
+	if ctrl, ok := controller.(hasStore); ok {
+		r.Post(pattern, ctrl.Store)
+	}
+	if ctrl, ok := controller.(hasShow); ok {
+		r.Get(pattern+"/{id}", ctrl.Show)
+	}
+	if ctrl, ok := controller.(hasUpdate); ok {
+		r.Put(pattern+"/{id}", ctrl.Update)
+		r.Patch(pattern+"/{id}", ctrl.Update)
+	}
+	if ctrl, ok := controller.(hasDestroy); ok {
+		r.Delete(pattern+"/{id}", ctrl.Destroy)
+	}
 }
 
 // Mount attaches a sub-router at the given pattern.
 func (r *Router) Mount(pattern string, handler http.Handler) {
 	r.mux.Mount(pattern, handler)
+}
+
+// Static registers a route to serve static files from a directory.
+func (r *Router) Static(path string, root string) {
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+	r.mux.Handle(path+"*", http.StripPrefix(path, http.FileServer(http.Dir(root))))
+}
+
+// MountSwagger mounts the Swagger UI and OpenAPI JSON endpoints.
+func (r *Router) MountSwagger() {
+	if os.Getenv("APP_ENV") != "development" {
+		return
+	}
+	// Serve OpenAPI spec (assuming it's at docs/openapi.json)
+	r.mux.Get("/openapi.json", func(w http.ResponseWriter, req *http.Request) {
+		http.ServeFile(w, req, "docs/openapi.json")
+	})
+	// Serve Swagger UI (could be a CDN or local static files)
+	r.mux.Get("/docs", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<!DOCTYPE html><html><head><link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3/swagger-ui.css" ><script src="https://unpkg.com/swagger-ui-dist@3/swagger-ui-bundle.js"> </script></head><body><div id="swagger-ui"></div><script>window.onload = function() { SwaggerUIBundle({ url: "/openapi.json", dom_id: "#swagger-ui" }) }</script></body></html>`))
+	})
 }
 
 // ServeHTTP implements http.Handler for the router.

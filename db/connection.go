@@ -8,10 +8,14 @@ import (
 
 	"github.com/astraframework/astra/config"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-// DB is the database service holding the connection pool.
+// DB is the database service holding the Gorm connection pool and the raw pgx pool.
 type DB struct {
+	Orm    *gorm.DB
 	Pool   *pgxpool.Pool
 	config config.DatabaseConfig
 }
@@ -21,35 +25,24 @@ func (d *DB) Name() string {
 	return "db"
 }
 
-// Start initializes the database connection pool.
+// Start initializes the database connection pool using GORM and pgxpool.
 func (d *DB) Start(ctx context.Context) error {
-	cfg, err := pgxpool.ParseConfig(d.config.URL)
+	ormDB, pool, err := Connect(ctx, d.config)
 	if err != nil {
-		return fmt.Errorf("db: failed to parse connection string: %w", err)
+		return err
 	}
-
-	cfg.MaxConns = d.config.MaxConns
-	cfg.MinConns = d.config.MinConns
-	cfg.MaxConnIdleTime = d.config.MaxIdle
-
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		return fmt.Errorf("db: failed to create connection pool: %w", err)
-	}
-
-	// Ping to verify connection
-	if err := pool.Ping(ctx); err != nil {
-		return fmt.Errorf("db: failed to ping database: %w", err)
-	}
-
+	d.Orm = ormDB
 	d.Pool = pool
 	return nil
 }
 
-// Stop closes the database connection pool.
+// Stop closes the underlying database connection pool.
 func (d *DB) Stop(ctx context.Context) error {
-	if d.Pool != nil {
-		d.Pool.Close()
+	if d.Orm != nil {
+		sqlDB, err := d.Orm.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
 	}
 	return nil
 }
@@ -61,30 +54,33 @@ func New(cfg config.DatabaseConfig) *DB {
 	}
 }
 
-// Connect creates a standalone connection pool (useful for CLI and auto-loading).
-func Connect(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
-	poolCfg, err := pgxpool.ParseConfig(cfg.URL)
+// Connect creates standalone gorm.DB and pgxpool.Pool instances.
+func Connect(ctx context.Context, cfg config.DatabaseConfig) (*gorm.DB, *pgxpool.Pool, error) {
+	// 1. Initialize raw pgxpool (required by migrations and seeders)
+	pool, err := pgxpool.New(ctx, cfg.URL)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("failed to connect to pgxpool: %w", err)
 	}
 
-	// NeonDB serverless tuning
-	poolCfg.MaxConns = cfg.MaxConns
-	poolCfg.MinConns = cfg.MinConns
-	poolCfg.MaxConnIdleTime = cfg.MaxIdle
-	poolCfg.HealthCheckPeriod = 60 * time.Second
+	// 2. Initialize GORM with retry logic for NeonDB cold starts
+	var ormDB *gorm.DB
 
-	// Retry on cold start (NeonDB wakes up in ~500ms)
-	var pool *pgxpool.Pool
-	ctx := context.Background()
+
+	gormConfig := &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Warn), // Customize as needed
+	}
 
 	for attempt := 1; attempt <= 3; attempt++ {
-		pool, err = pgxpool.NewWithConfig(ctx, poolCfg)
+		ormDB, err = gorm.Open(postgres.Open(cfg.URL), gormConfig)
 		if err == nil {
-			if pingErr := pool.Ping(ctx); pingErr == nil {
-				break
-			} else {
-				err = pingErr
+			var sqlDB interface{ Ping() error }
+			sqlDB, err = ormDB.DB()
+			if err == nil {
+				if pingErr := sqlDB.Ping(); pingErr == nil {
+					break
+				} else {
+					err = pingErr
+				}
 			}
 		}
 		slog.Warn("postgres cold start, retrying...", "attempt", attempt, "error", err)
@@ -92,9 +88,25 @@ func Connect(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to postgres after 3 attempts: %w", err)
+		return nil, nil, fmt.Errorf("failed to connect to postgres after 3 attempts: %w", err)
 	}
 
-	slog.Info("✓ Postgres connected", "host", poolCfg.ConnConfig.Host)
-	return pool, nil
+	// Apply connection pool settings
+	sqlDB, err := ormDB.DB()
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	// Default to reasonable values if config provides 0
+	maxConns := int(cfg.MaxConns)
+	if maxConns <= 0 {
+		maxConns = 25
+	}
+	
+	sqlDB.SetMaxOpenConns(maxConns)
+	sqlDB.SetMaxIdleConns(int(cfg.MinConns))
+	sqlDB.SetConnMaxIdleTime(cfg.MaxIdle)
+
+	slog.Info("✓ Postgres connected via GORM")
+	return ormDB, pool, nil
 }

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // GraphqlCmd returns the `astra make:graphql-*` commands.
@@ -28,7 +30,7 @@ func makeResolverCmd() *cobra.Command {
 		Short: "Create a new GraphQL resolver",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := strings.Title(args[0])
+			name := cases.Title(language.English).String(args[0])
 			path := filepath.Join("app/graphql/resolvers", strings.ToLower(name)+".go")
 
 			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -61,7 +63,7 @@ func makeTypeCmd() *cobra.Command {
 		Short: "Create a new GraphQL type definition",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := strings.Title(args[0])
+			name := cases.Title(language.English).String(args[0])
 			path := filepath.Join("app/graphql/schema", strings.ToLower(name)+".graphql")
 
 			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {

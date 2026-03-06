@@ -29,7 +29,8 @@ type Hub struct {
 	redis *redis.Client
 	rChan string
 
-	mu sync.RWMutex
+	stop chan struct{}
+	mu   sync.RWMutex
 }
 
 // NewHub creates a new Hub.
@@ -42,6 +43,7 @@ func NewHub(redis *redis.Client, rChan string) *Hub {
 		rooms:       make(map[string]map[*Connection]bool),
 		redis:       redis,
 		rChan:       rChan,
+		stop:        make(chan struct{}),
 	}
 }
 
@@ -83,8 +85,22 @@ func (h *Hub) Run() {
 				}
 			}
 			h.mu.RUnlock()
+		case <-h.stop:
+			h.mu.Lock()
+			for conn := range h.connections {
+				close(conn.send)
+				delete(h.connections, conn)
+			}
+			h.mu.Unlock()
+			return
 		}
 	}
+}
+
+// Stop signals the hub to shut down.
+func (h *Hub) Stop(ctx context.Context) error {
+	close(h.stop)
+	return nil
 }
 
 func (h *Hub) listenRedis() {

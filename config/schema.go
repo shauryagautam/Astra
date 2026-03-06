@@ -13,10 +13,18 @@ type AstraConfig struct {
 	Database  DatabaseConfig
 	Redis     RedisConfig
 	Auth      AuthConfig
+	OAuth2    OAuth2Config
 	Storage   StorageConfig
 	Mail      MailConfig
 	Queue     QueueConfig
 	Telemetry TelemetryConfig
+	Assets    AssetConfig
+	WS        WSConfig
+}
+
+// WSConfig holds WebSocket settings.
+type WSConfig struct {
+	AllowedOrigins []string
 }
 
 // AppConfig holds general application settings.
@@ -27,6 +35,7 @@ type AppConfig struct {
 	Port        int
 	Debug       bool
 	Key         string // Application secret key
+	MaxBodySize int64  // default 10MB
 }
 
 // DatabaseConfig holds Postgres connection settings, optimized for NeonDB.
@@ -94,6 +103,30 @@ type TelemetryConfig struct {
 	ServiceName string
 }
 
+// OAuth2Config holds OAuth2 provider configurations.
+type OAuth2Config struct {
+	Google  OAuth2ProviderEnvConfig
+	GitHub  OAuth2ProviderEnvConfig
+	Discord OAuth2ProviderEnvConfig
+}
+
+// OAuth2ProviderEnvConfig holds the env-loaded config for a single OAuth2 provider.
+type OAuth2ProviderEnvConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+}
+
+// AssetConfig holds asset pipeline configuration.
+type AssetConfig struct {
+	Entrypoints []string // e.g. ["resources/js/app.js", "resources/css/app.css"]
+	OutputDir   string   // e.g. "public/build"
+	PublicPath  string   // e.g. "/build/"
+	Minify      bool
+	Sourcemap   bool
+	Manifest    string // e.g. "public/build/manifest.json"
+}
+
 // Validate checks that all required AstraConfig fields are set.
 // Call this at application startup to fail fast on misconfiguration.
 func (c *AstraConfig) Validate() error {
@@ -111,6 +144,8 @@ func (c *AstraConfig) Validate() error {
 	}
 	if c.Auth.JWTSecret == "" {
 		errs = append(errs, "JWT_SECRET is required (or set APP_KEY as fallback)")
+	} else if len(c.Auth.JWTSecret) < 32 {
+		errs = append(errs, "JWT_SECRET must be at least 32 bytes long for security")
 	}
 
 	if len(errs) > 0 {
@@ -145,6 +180,7 @@ func LoadFromEnv(c *Config) *AstraConfig {
 			Port:        c.Int("PORT", 3333),
 			Debug:       c.Bool("APP_DEBUG", true),
 			Key:         c.String("APP_KEY", ""),
+			MaxBodySize: int64(c.Int("APP_MAX_BODY_SIZE", 10*1024*1024)),
 		},
 		Database: DatabaseConfig{
 			URL:        c.String("DATABASE_URL", ""),
@@ -196,6 +232,9 @@ func LoadFromEnv(c *Config) *AstraConfig {
 		Telemetry: TelemetryConfig{
 			Endpoint:    c.String("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 			ServiceName: c.String("OTEL_SERVICE_NAME", c.String("APP_NAME", "Astra App")),
+		},
+		WS: WSConfig{
+			AllowedOrigins: strings.Split(c.String("WS_ALLOWED_ORIGINS", ""), ","),
 		},
 	}
 }

@@ -152,7 +152,7 @@ export class AstraClient {
     this.token = token;
   }
 
-  private async request(method: string, path: string, data?: any) {
+  private async request(method: string, path: string, data?: any): Promise<any> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -167,7 +167,20 @@ export class AstraClient {
       options.body = JSON.stringify(data);
     }
 
-    const response = await fetch(url, options);
+    let response = await fetch(url, options);
+
+    // Auto-refresh on 401
+    if (response.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
+      const refreshOk = await this.refreshToken();
+      if (refreshOk) {
+        // Retry with new token
+        if (this.token) {
+          headers['Authorization'] = 'Bearer ' + this.token;
+        }
+        response = await fetch(url, options);
+      }
+    }
+
     if (!response.ok) {
       throw new Error('API Error: ' + response.statusText);
     }
@@ -179,6 +192,25 @@ export class AstraClient {
     } catch {
       return text;
     }
+  }
+
+  private async refreshToken(): Promise<boolean> {
+    try {
+      const resp = await fetch(this.baseUrl + '/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.token) {
+          this.setToken(data.token);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.error('[Astra Client] Token refresh failed', err);
+    }
+    return false;
   }
 
 {{range .Routes}}

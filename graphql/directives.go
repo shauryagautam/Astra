@@ -3,6 +3,8 @@ package graphql
 import (
 	"context"
 	"fmt"
+
+	"github.com/astraframework/astra/auth"
 )
 
 // Directive is a function that can wrap a resolver execution.
@@ -11,9 +13,7 @@ type Directive func(ctx context.Context, next func(ctx context.Context) (interfa
 // AuthDirective implements the @auth directive.
 // It checks if a user is authenticated in the context.
 func AuthDirective(ctx context.Context, next func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	// In Astra, we expect the auth middleware to set the "user" in context.
-	// This is a placeholder for the actual context check.
-	user := ctx.Value("user")
+	user := auth.GetAuthUser(ctx)
 	if user == nil {
 		return nil, fmt.Errorf("unauthenticated")
 	}

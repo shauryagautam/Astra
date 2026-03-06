@@ -30,3 +30,9 @@ func (r *TestResponse) AssertJSON(key string, expected any) {
 	assert.True(r.t, ok, "Key %s not found in JSON response", key)
 	assert.Equal(r.t, expected, val)
 }
+
+// AssertHeader asserts the response contains a specific header value.
+func (r *TestResponse) AssertHeader(key, expected string) {
+	val := r.Recorder.Header().Get(key)
+	assert.Equal(r.t, expected, val, "Header %s does not match", key)
+}

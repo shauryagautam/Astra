@@ -3,13 +3,16 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/astraframework/astra/core"
+	"github.com/astraframework/astra/storage"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -75,6 +78,10 @@ func (c *Context) Bind(v any) error {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			return NewHTTPError(http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body exceeds size limit")
+		}
 		return NewHTTPError(http.StatusBadRequest, "READ_ERROR", "failed to read request body")
 	}
 
@@ -231,6 +238,76 @@ func (c *Context) SendString(s string, status ...int) error {
 	c.written = true
 	_, err := c.Writer.Write([]byte(s))
 	return err
+}
+
+// HTML sends an HTML response.
+func (c *Context) HTML(html string, status ...int) error {
+	code := http.StatusOK
+	if len(status) > 0 {
+		code = status[0]
+	}
+	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c.Writer.WriteHeader(code)
+	c.written = true
+	_, err := c.Writer.Write([]byte(html))
+	return err
+}
+
+// File sends a file response.
+func (c *Context) File(filepath string) error {
+	http.ServeFile(c.Writer, c.Request, filepath)
+	c.written = true
+	return nil
+}
+
+// FormFile returns the uploaded file for the given form field.
+func (c *Context) FormFile(field string) (*UploadedFile, error) {
+	file, header, err := c.Request.FormFile(field)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UploadedFile{
+		Name:    header.Filename,
+		Size:    header.Size,
+		Content: content,
+		Header:  header,
+	}, nil
+}
+
+// UploadedFile represents an uploaded file.
+type UploadedFile struct {
+	Name    string
+	Size    int64
+	Content []byte
+	Header  *multipart.FileHeader
+}
+
+// Store saves the uploaded file to the given storage driver.
+func (f *UploadedFile) Store(ctx context.Context, s storage.Storage, path string) error {
+	return s.Put(ctx, path, f.Content)
+}
+
+// Download forces the browser to download the file at the given filepath.
+func (c *Context) Download(filepath string, filename ...string) error {
+	name := ""
+	if len(filename) > 0 {
+		name = filename[0]
+	} else {
+		// Extract filename from path if not provided
+		parts := strings.Split(filepath, "/")
+		name = parts[len(parts)-1]
+	}
+	c.Writer.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	http.ServeFile(c.Writer, c.Request, filepath)
+	c.written = true
+	return nil
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────

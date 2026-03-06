@@ -149,11 +149,14 @@ func (a *App) Start() error {
 
 	// 2. Auto-connect Postgres
 	if a.Get("db") == nil && a.Config.Database.URL != "" {
-		pool, err := db.Connect(a.Config.Database)
+		orm, pool, err := db.Connect(context.Background(), a.Config.Database)
 		if err != nil {
 			return err
 		}
-		a.Register("db", pool)
+		dbSvc := db.New(a.Config.Database)
+		dbSvc.Orm = orm
+		dbSvc.Pool = pool
+		a.Register("db", dbSvc)
 	}
 
 	// 3. Auto-connect Redis / Cache

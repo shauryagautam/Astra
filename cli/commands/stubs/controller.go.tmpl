@@ -1,0 +1,41 @@
+package {{ .Package }}
+
+import (
+	"github.com/astraframework/astra/http"
+)
+
+// {{ .Name }}Controller handles CRUD operations for {{ .NameLower }}s.
+type {{ .Name }}Controller struct{}
+
+// Index lists all {{ .NameLower }}s.
+func (ctrl *{{ .Name }}Controller) Index(c *http.Context) error {
+	// TODO: fetch all records
+	return c.Success(nil)
+}
+
+// Store creates a new {{ .NameLower }}.
+func (ctrl *{{ .Name }}Controller) Store(c *http.Context) error {
+	// TODO: validate and create record
+	return c.Created(nil)
+}
+
+// Show retrieves a single {{ .NameLower }}.
+func (ctrl *{{ .Name }}Controller) Show(c *http.Context) error {
+	// id := c.Param("id")
+	// TODO: fetch record by ID
+	return c.Success(nil)
+}
+
+// Update modifies an existing {{ .NameLower }}.
+func (ctrl *{{ .Name }}Controller) Update(c *http.Context) error {
+	// id := c.Param("id")
+	// TODO: validate and update record
+	return c.Success(nil)
+}
+
+// Destroy deletes a {{ .NameLower }}.
+func (ctrl *{{ .Name }}Controller) Destroy(c *http.Context) error {
+	// id := c.Param("id")
+	// TODO: delete record
+	return c.NoContent()
+}

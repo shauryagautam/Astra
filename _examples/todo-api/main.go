@@ -24,8 +24,22 @@ func main() {
 	}
 
 	// Register services
-	db.Register(app)
-	cache.Register(app)
+	dbService := db.New(app.Config.Database)
+	if err := dbService.Start(context.Background()); err != nil {
+		log.Fatalf("Failed to start db: %v", err)
+	}
+	app.Register("db", dbService)
+	cacheSvc := cache.New(app.Config.Redis)
+	if err := cacheSvc.Start(context.Background()); err != nil {
+		log.Fatalf("Failed to start cache: %v", err)
+	}
+	app.Register("redis", cacheSvc)
+
+	// Run Migrations for Todo
+	err = dbService.Orm.AutoMigrate(&Todo{})
+	if err != nil {
+		log.Fatalf("Failed to migrate: %v", err)
+	}
 
 	// App start hook
 	app.OnStart(func(ctx context.Context) error {
@@ -42,7 +56,7 @@ func main() {
 		// WS Hub
 		hub := ws.NewHub(redisSvc.Client, "astra_ws_broadcast")
 		go hub.Run()
-		wsUpgrader := ws.NewUpgrader(hub)
+		wsUpgrader := ws.NewUpgrader(hub, app.Config.WS, app.Config.App.Environment == "development")
 
 		// Setup JWT Manager
 		jwtManager := auth.NewJWTManager(app.Config.Auth, redisSvc.Client)
@@ -143,4 +157,13 @@ func (j *WelcomeEmailJob) Handle() error {
 		Subject: "Welcome to Astra",
 		Body:    "Thanks for registering!",
 	})
+}
+
+// Todo represents a sample Todo model using the extended GORM base.
+type Todo struct {
+	db.Model
+	Title       string  `gorm:"type:varchar(255);not null" json:"title"`
+	Description string  `gorm:"type:text" json:"description"`
+	Completed   bool    `gorm:"default:false" json:"completed"`
+	Tags        db.JSON `gorm:"type:jsonb" json:"tags"` // Test JSONB
 }

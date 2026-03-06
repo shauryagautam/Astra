@@ -13,6 +13,8 @@ Astra is a production-grade Go full-stack framework inspired by AdonisJS and Rub
 - **Mail:** SMTP and Resend.com support.
 - **CLI:** Powerful scaffolding and code generation tool.
 - **TypeScript Codegen:** Automatically generate a type-safe API client for React/Expo.
+- **Unique Jobs:** Built-in deduplication for background tasks with `DispatchUnique`.
+- **Typed IoC:** Type-safe service retrieval using Go 1.18+ generics (`Get[T]`).
 
 ## Quickstart
 
@@ -34,3 +36,48 @@ astra dev
 
 ### Example
 See `_examples/todo-api` for a complete working API with Auth, Websockets, Jobs, and more.
+
+## Architecture
+
+Astra follows a service-oriented architecture where everything is injected via the service container.
+
+```go
+func main() {
+    app, _ := core.New()
+    
+    app.OnStart(func(ctx context.Context) error {
+        router := http.NewRouter(app)
+        // your routes...
+        return nil
+    })
+    
+    app.Start()
+}
+```
+
+## Testing
+
+Astra provides a first-class testing experience with mockable drivers:
+
+```go
+func TestUserCreation(t *testing.T) {
+    app := testing.NewTestApp(t, setup)
+    mailer := testing.NewFakeMailer()
+    app.Register("mailer", mailer)
+    
+    resp := app.POST("/users", `{"email": "test@example.com"}`)
+    resp.AssertStatus(201)
+    
+    mailer.AssertSent(t, "test@example.com")
+}
+```
+
+## Security
+
+Ready for production with:
+- Configurable WebSocket origin whitelist.
+- Secure HTTP headers (CSP, HSTS, etc.) applied by default.
+- Request body size limits.
+- Fail-safe validation rules.
+- JWT secret length enforcement.
+

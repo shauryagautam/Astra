@@ -56,6 +56,20 @@ func (d *Dispatcher) Dispatch(ctx context.Context, job Job, name string) error {
 	return d.client.LPush(ctx, queueKey, bytes).Err()
 }
 
+// DispatchUnique pushes a job to the queue only if it's unique within the ttl.
+// It uses Redis SETNX to enforce uniqueness for the given duration.
+func (d *Dispatcher) DispatchUnique(ctx context.Context, job Job, name string, ttl time.Duration) error {
+	uniqueKey := d.prefix + "unique:" + name + ":" + job.Queue()
+	ok, err := d.client.SetNX(ctx, uniqueKey, "1", ttl).Result()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil // Already dispatched and still protected by TTL
+	}
+	return d.Dispatch(ctx, job, name)
+}
+
 // DispatchIn pushes a job to the delayed queue to be processed after the duration.
 func (d *Dispatcher) DispatchIn(ctx context.Context, job Job, name string, delay time.Duration) error {
 	return d.DispatchAt(ctx, job, name, time.Now().Add(delay))
