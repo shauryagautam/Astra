@@ -1,0 +1,12 @@
+package {{ .Package }}
+
+import (
+	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// {{ .Name }} runs the seeder for {{ .NameLower }}s.
+func {{ .Name }}(ctx context.Context, db *pgxpool.Pool) error {
+	// TODO: use factories or raw SQL to seed data
+	return nil
+}

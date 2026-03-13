@@ -1,0 +1,23 @@
+package {{ .Package }}
+
+import (
+	"context"
+	"github.com/astraframework/astra/core"
+)
+
+// {{ .Name }}Provider manages the lifecycle of the {{ .NameLower }} service.
+type {{ .Name }}Provider struct {
+	core.BaseProvider
+}
+
+// Register is called when the provider is registered in the container.
+func (p *{{ .Name }}Provider) Register(app *core.App) error {
+	// TODO: Register services in the container
+	return nil
+}
+
+// Boot is called before the application starts.
+func (p *{{ .Name }}Provider) Boot(app *core.App) error {
+	// TODO: Initialize services
+	return nil
+}

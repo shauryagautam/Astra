@@ -1,0 +1,37 @@
+package models
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type User struct {
+	ID        uuid.UUID  `json:"id" orm:"column:id;primary_key;type:uuid"`
+	Email     string     `json:"email" orm:"column:email;unique_index;type:varchar(255)"`
+	Password  string     `json:"-" orm:"column:password;type:varchar(255)"`
+	Name      string     `json:"name" orm:"column:name;type:varchar(255)"`
+	Active    bool       `json:"active" orm:"column:active;type:boolean;default:true"`
+	CreatedAt time.Time  `json:"created_at" orm:"column:created_at;type:timestamp"`
+	UpdatedAt time.Time  `json:"updated_at" orm:"column:updated_at;type:timestamp"`
+}
+
+func (User) TableName() string {
+	return "users"
+}
+
+// BeforeCreate runs before creating a user
+func (u *User) BeforeCreate() error {
+	// Hash password before saving
+	// TODO: Implement password hashing
+	return nil
+}
+
+// BeforeUpdate runs before updating a user
+func (u *User) BeforeUpdate() error {
+	// Hash password if it's being updated
+	if u.Password != "" {
+		// TODO: Implement password hashing
+	}
+	return nil
+}

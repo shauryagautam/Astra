@@ -1,0 +1,35 @@
+# Binaries
+bin/
+main
+astra
+
+# Environment
+.env
+.env.local
+
+# Vendor
+vendor/
+
+# Dependencies
+node_modules/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Go
+coverage.out
+*.test
+
+# Logs
+*.log
+**/*.log
+storage/logs/
+
+# Documentation
+docs/.vitepress/dist
+docs/.vitepress/cache
+docs/node_modules

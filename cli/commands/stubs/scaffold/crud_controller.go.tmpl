@@ -1,0 +1,108 @@
+package controllers
+
+import (
+	"strconv"
+
+	"github.com/astraframework/astra/http"
+	"github.com/astraframework/astra/orm"
+)
+
+type {{.ModelName}}Controller struct {
+	db *orm.DB
+}
+
+func New{{.ModelName}}Controller(db *orm.DB) *{{.ModelName}}Controller {
+	return &{{.ModelName}}Controller{db: db}
+}
+
+// Index returns a paginated list of {{.ModelLower}}s
+func (ctrl *{{.ModelName}}Controller) Index(c *http.Context) error {
+	page := c.PageInt(1)
+	perPage := c.PerPageInt(15)
+
+	result, err := orm.Query[{{.ModelName}}](ctrl.db).
+		Paginate(c.Ctx(), page, perPage)
+	if err != nil {
+		return c.InternalError("Failed to fetch {{.ModelLower}}s")
+	}
+
+	return c.PaginatedJSON(result, "{{.ModelLower}}s retrieved successfully")
+}
+
+// Show returns a single {{.ModelLower}}
+func (ctrl *{{.ModelName}}Controller) Show(c *http.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.BadRequestError("Invalid ID")
+	}
+
+	{{.ModelLower}}, err := orm.Query[{{.ModelName}}](ctrl.db).Find(id, c.Ctx())
+	if err != nil {
+		return c.NotFoundError("{{.ModelName}} not found")
+	}
+
+	return c.Success({{.ModelLower}}, "{{.ModelLower}} retrieved successfully")
+}
+
+// Store creates a new {{.ModelLower}}
+func (ctrl *{{.ModelName}}Controller) Store(c *http.Context) error {
+	var req Create{{.ModelName}}Request
+	if err := c.BindAndValidate(&req); err != nil {
+		return c.ValidationError(err)
+	}
+
+	{{.ModelLower}} := req.ToModel()
+	
+	created, err := orm.Query[{{.ModelName}}](ctrl.db).Create({{.ModelLower}}, c.Ctx())
+	if err != nil {
+		return c.InternalError("Failed to create {{.ModelLower}}")
+	}
+
+	return c.Created(created, "{{.ModelLower}} created successfully")
+}
+
+// Update updates an existing {{.ModelLower}}
+func (ctrl *{{.ModelName}}Controller) Update(c *http.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.BadRequestError("Invalid ID")
+	}
+
+	{{.ModelLower}}, err := orm.Query[{{.ModelName}}](ctrl.db).Find(id, c.Ctx())
+	if err != nil {
+		return c.NotFoundError("{{.ModelName}} not found")
+	}
+
+	var req Update{{.ModelName}}Request
+	if err := c.BindAndValidate(&req); err != nil {
+		return c.ValidationError(err)
+	}
+
+	req.ApplyToModel({{.ModelLower}})
+	
+	updated, err := orm.Query[{{.ModelName}}](ctrl.db).Save({{.ModelLower}}, c.Ctx())
+	if err != nil {
+		return c.InternalError("Failed to update {{.ModelLower}}")
+	}
+
+	return c.Success(updated, "{{.ModelLower}} updated successfully")
+}
+
+// Delete removes a {{.ModelLower}}
+func (ctrl *{{.ModelName}}Controller) Delete(c *http.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.BadRequestError("Invalid ID")
+	}
+
+	{{.ModelLower}}, err := orm.Query[{{.ModelName}}](ctrl.db).Find(id, c.Ctx())
+	if err != nil {
+		return c.NotFoundError("{{.ModelName}} not found")
+	}
+
+	if err := orm.Query[{{.ModelName}}](ctrl.db).Delete(c.Ctx()); err != nil {
+		return c.InternalError("Failed to delete {{.ModelLower}}")
+	}
+
+	return c.Success(nil, "{{.ModelLower}} deleted successfully")
+}

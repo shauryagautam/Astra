@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background-color: #f7f9fc; color: #333; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 300px; }
+        h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }
+        input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 0.5rem; background: #4F46E5; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #4338CA; }
+        .flash-error { color: #b91c1c; background: #fee2e2; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.875rem; text-align: center;}
+        .flash-success { color: #15803d; background: #dcfce7; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.875rem; text-align: center;}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>{{.Title}}</h1>
+        
+        {{if .flash.error}}
+        <div class="flash-error">{{.flash.error}}</div>
+        {{end}}
+
+        {{if .flash.success}}
+        <div class="flash-success">{{.flash.success}}</div>
+        {{end}}
+
+        <form action="/login" method="POST">
+            <!-- If we had CSRF enabled, we'd include {{.csrfToken}} -->
+            <div>
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="admin@example.com" required>
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" value="password" required>
+            </div>
+            <button type="submit">Sign In</button>
+        </form>
+    </div>
+</body>
+</html>

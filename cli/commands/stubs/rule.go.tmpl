@@ -1,0 +1,15 @@
+package {{ .Package }}
+
+import (
+	"github.com/go-playground/validator/v10"
+)
+
+// {{ .Name }} is a custom validation rule.
+// Usage: `validate:"{{ .NameSnake }}"`
+func {{ .Name }}() validator.Func {
+	return func(fl validator.FieldLevel) bool {
+		// val := fl.Field().Interface()
+		// TODO: implement validation logic
+		return true
+	}
+}

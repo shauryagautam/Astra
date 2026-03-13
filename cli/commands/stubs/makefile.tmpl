@@ -1,0 +1,37 @@
+.PHONY: all build run test clean migrate-up migrate-down setup
+
+APP_NAME={{.AppName}}
+
+all: build
+
+build:
+	@echo "Building..."
+	@go build -o bin/$(APP_NAME) main.go
+
+run:
+	@go run main.go
+
+dev:
+	@astra dev
+
+test:
+	@echo "Testing..."
+	@go test ./... -v
+
+clean:
+	@echo "Cleaning..."
+	@rm -rf bin/
+	@go clean
+
+setup:
+	@echo "Setting up dependencies..."
+	@go mod tidy
+	@docker-compose up -d
+
+migrate-up:
+	@echo "Running migrations..."
+	@go run main.go migrate up
+
+migrate-down:
+	@echo "Reverting migrations..."
+	@go run main.go migrate down

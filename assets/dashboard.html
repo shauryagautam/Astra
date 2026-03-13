@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astra Dev Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .sidebar-link.active { background: rgba(99, 102, 241, 0.1); color: #818cf8; border-right: 2px solid #818cf8; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen flex overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 border-r border-slate-800 flex flex-col glass z-50">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">A</div>
+            <span class="font-bold text-lg tracking-tight">ASTRA <span class="text-indigo-400">DEV</span></span>
+        </div>
+        
+        <nav class="flex-1 py-6">
+            <div class="px-6 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Observability</div>
+            <a href="#" onclick="showTab('overview')" id="link-overview" class="sidebar-link flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors active">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i> Overview
+            </a>
+            <a href="#" onclick="showTab('entries')" id="link-entries" class="sidebar-link flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="activity" class="w-4 h-4"></i> Activity Log
+            </a>
+            
+            <div class="px-6 mt-8 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Inspection</div>
+            <a href="#" onclick="showTab('routes')" id="link-routes" class="sidebar-link flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="map" class="w-4 h-4"></i> Routes
+            </a>
+            <a href="#" onclick="showTab('config')" id="link-config" class="sidebar-link flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="settings" class="w-4 h-4"></i> Config
+            </a>
+            <a href="#" onclick="showTab('db')" id="link-db" class="sidebar-link flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="database" class="w-4 h-4"></i> Queries
+            </a>
+        </nav>
+
+        <div class="p-6 border-t border-slate-800 text-[10px] text-slate-500">
+            Astra Framework v1.0.0-dev
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto relative">
+        <header class="h-16 border-b border-slate-800 sticky top-0 glass z-40 px-8 flex items-center justify-between">
+            <h2 id="tab-title" class="text-lg font-bold">Overview</h2>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-3 py-1.5 rounded-full border border-emerald-400/20">
+                    <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                    Live Connected
+                </div>
+                <button onclick="clearEntries()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors text-rose-400 hover:text-rose-300" title="Clear All Activity">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="p-8">
+            <!-- Overview Tab -->
+            <div id="tab-overview" class="dashboard-tab space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="glass p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">HTTP Requests</span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                <i data-lucide="globe" class="w-4 h-4 text-emerald-400"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold" id="stat-http">0</div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">SQL Queries</span>
+                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                <i data-lucide="database" class="w-4 h-4 text-blue-400"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold" id="stat-query">0</div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Log Entries</span>
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <i data-lucide="terminal" class="w-4 h-4 text-amber-400"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold" id="stat-log">0</div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Events</span>
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                <i data-lucide="zap" class="w-4 h-4 text-indigo-400"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold" id="stat-event">0</div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 font-semibold">System Info</div>
+                    <div class="p-6 grid grid-cols-2 gap-8 text-sm" id="config-overview">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Log Tab -->
+            <div id="tab-entries" class="dashboard-tab hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="setFilter('all')" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-bold hover:bg-slate-700 transition-colors">ALL</button>
+                        <button onclick="setFilter('http')" class="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">HTTP</button>
+                        <button onclick="setFilter('query')" class="px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold">SQL</button>
+                        <button onclick="setFilter('event')" class="px-4 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold">EVENT</button>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-900/50">
+                                <th class="px-6 py-4">Time</th>
+                                <th class="px-6 py-4">Type</th>
+                                <th class="px-6 py-4">Description</th>
+                                <th class="px-6 py-4 text-right">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entries-body" class="divide-y divide-slate-800/50 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Routes Tab -->
+            <div id="tab-routes" class="dashboard-tab hidden">
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-900/50">
+                                <th class="px-6 py-4 w-24">Method</th>
+                                <th class="px-6 py-4">Pattern</th>
+                            </tr>
+                        </thead>
+                        <tbody id="routes-body" class="divide-y divide-slate-800/50 text-sm font-mono">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div id="tab-config" class="dashboard-tab hidden">
+                <div id="config-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <!-- Database Tab -->
+            <div id="tab-db" class="dashboard-tab hidden">
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-900/50">
+                                <th class="px-6 py-4">Time</th>
+                                <th class="px-6 py-4">Query</th>
+                                <th class="px-6 py-4 text-right">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="db-body" class="divide-y divide-slate-800/50 text-sm font-mono">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        let allEntries = [];
+        let currentFilter = 'all';
+
+        async function refresh() {
+            try {
+                const [entriesRes, routesRes, configRes] = await Promise.all([
+                    fetch('/__astra/api/entries'),
+                    fetch('/__astra/api/routes'),
+                    fetch('/__astra/api/config')
+                ]);
+                
+                const entries = await entriesRes.json();
+                const routes = await routesRes.json();
+                const config = await configRes.json();
+                
+                allEntries = entries;
+                renderOverview(entries, config);
+                renderEntries(entries);
+                renderRoutes(routes);
+                renderConfig(config);
+                renderDB(entries);
+                
+                updateStats(entries);
+            } catch (err) {
+                console.error('Refresh failed', err);
+            }
+        }
+
+        function showTab(id) {
+            document.querySelectorAll('.dashboard-tab').forEach(t => t.classList.add('hidden'));
+            document.getElementById('tab-' + id).classList.remove('hidden');
+            
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+            document.getElementById('link-' + id).classList.add('active');
+            
+            document.getElementById('tab-title').innerText = id.charAt(0).toUpperCase() + id.slice(1);
+        }
+
+        function renderOverview(entries, config) {
+            const container = document.getElementById('config-overview');
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between border-b border-slate-800 pb-2">
+                        <span class="text-slate-500">App Name</span>
+                        <span class="font-medium font-mono">${config.app.name}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-800 pb-2">
+                        <span class="text-slate-500">Environment</span>
+                        <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-xs">${config.app.env}</span>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex justify-between border-b border-slate-800 pb-2">
+                        <span class="text-slate-500">Host / Port</span>
+                        <span class="font-medium font-mono">${config.app.host}:${config.app.port}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-800 pb-2">
+                        <span class="text-slate-500">Database</span>
+                        <span class="font-medium text-slate-400">Postgres (GORM + pgx)</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEntries(entries) {
+            const body = document.getElementById('entries-body');
+            const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.type === currentFilter);
+            
+            body.innerHTML = filtered.reverse().slice(0, 100).map(e => `
+                <tr class="hover:bg-slate-800/30 transition-colors">
+                    <td class="px-6 py-4 text-xs font-mono text-slate-500">${new Date(e.timestamp).toLocaleTimeString()}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getTypeClass(e.type)}">
+                            ${e.type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-slate-200">${e.message}</div>
+                        ${e.data ? \`<pre class="text-[10px] text-slate-500 mt-1 max-w-lg overflow-hidden truncate">\${JSON.stringify(e.data)}</pre>\` : ''}
+                    </td>
+                    <td class="px-6 py-4 text-right font-mono text-xs \${e.duration_ms > 500 ? 'text-rose-400' : 'text-slate-500'}">
+                        \${e.duration_ms ? e.duration_ms + 'ms' : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderRoutes(routes) {
+            const body = document.getElementById('routes-body');
+            body.innerHTML = routes.map(r => `
+                <tr class="hover:bg-slate-800/30 transition-colors">
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase \${getMethodClass(r.method)}">\${r.method}</span>
+                    </td>
+                    <td class="px-6 py-4 text-slate-300">\${r.pattern}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderConfig(config) {
+            const container = document.getElementById('config-content');
+            container.innerHTML = Object.entries(config).map(([section, values]) => `
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 font-bold uppercase text-xs tracking-widest text-indigo-400">\${section}</div>
+                    <div class="p-6 space-y-4">
+                        \${Object.entries(values).map(([k, v]) => \`
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-500 font-medium">\${k}</span>
+                                <span class="font-mono text-slate-300">\${v}</span>
+                            </div>
+                        \`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDB(entries) {
+            const body = document.getElementById('db-body');
+            const queries = entries.filter(e => e.type === 'query');
+            body.innerHTML = queries.reverse().slice(0, 50).map(e => `
+                <tr class="hover:bg-slate-800/30 transition-colors">
+                    <td class="px-6 py-4 text-xs font-mono text-slate-500">${new Date(e.timestamp).toLocaleTimeString()}</td>
+                    <td class="px-6 py-4 text-slate-300 break-all">\${e.message}</td>
+                    <td class="px-6 py-4 text-right font-mono text-xs \${e.duration_ms > 100 ? 'text-amber-400' : 'text-slate-500'}">
+                        \${e.duration_ms}ms
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStats(entries) {
+            const stats = { http: 0, query: 0, log: 0, event: 0 };
+            entries.forEach(e => { if (stats[e.type] !== undefined) stats[e.type]++; });
+            Object.keys(stats).forEach(k => {
+                const el = document.getElementById('stat-' + k);
+                if (el) el.innerText = stats[k];
+            });
+        }
+
+        function setFilter(f) {
+            currentFilter = f;
+            renderEntries(allEntries);
+        }
+
+        function getTypeClass(type) {
+            switch(type) {
+                case 'http': return 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20';
+                case 'query': return 'bg-blue-500/10 text-blue-500 border border-blue-500/20';
+                case 'event': return 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20';
+                case 'log': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
+                case 'mail': return 'bg-rose-500/10 text-rose-500 border border-rose-500/20';
+                case 'job': return 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20';
+                default: return 'bg-slate-500/10 text-slate-500 border border-slate-500/20';
+            }
+        }
+
+        function getMethodClass(method) {
+            switch(method) {
+                case 'GET': return 'bg-emerald-500/10 text-emerald-500';
+                case 'POST': return 'bg-blue-500/10 text-blue-500';
+                case 'PUT': case 'PATCH': return 'bg-amber-500/10 text-amber-500';
+                case 'DELETE': return 'bg-rose-500/10 text-rose-500';
+                default: return 'bg-slate-500/10 text-slate-500';
+            }
+        }
+
+        async function clearEntries() {
+            if (!confirm('Clear all dashboard activity?')) return;
+            await fetch('/__astra/api/clear', { method: 'POST' });
+            refresh();
+        }
+
+        refresh();
+        setInterval(refresh, 2000);
+    </script>
+</body>
+</html>

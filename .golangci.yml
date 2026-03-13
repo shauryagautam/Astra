@@ -1,0 +1,46 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+    enable-all: true
+  golint:
+    min-confidence: 0.8
+  gofmt:
+    simplify: true
+  misspell:
+    locale: US
+  unused:
+    check-exported: true
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+    - bodyclose
+    - stylecheck
+    - revive
+    - unconvert
+    - goconst
+    - gocritic
+    - goimports
+    - misspell
+    - unparam
+    - nakedret
+    - prealloc
+    - whitespace
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+  tests: true
