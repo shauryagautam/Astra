@@ -4,16 +4,16 @@ import (
 	"log"
 	nethttp "net/http"
 
-	"github.com/astraframework/astra/core"
-	"github.com/astraframework/astra/http"
-	"github.com/astraframework/astra/session"
-	"github.com/astraframework/astra/storage"
+	"github.com/shauryagautam/Astra/pkg/engine"
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+	"github.com/shauryagautam/Astra/pkg/session"
+	"github.com/shauryagautam/Astra/pkg/storage"
 	
 	"ssr_auth/routes"
 )
 
 func main() {
-	app, err := core.New()
+	app, err := framework.New()
 	if err != nil {
 		log.Fatalf("Failed to initialize app: %v", err)
 	}
@@ -33,7 +33,7 @@ func main() {
 	// Configure Template Engine for SSR Views
 	// This makes it available as `views` to `c.Render`
 	engine := http.NewTemplateEngine("views")
-	app.Register("views", engine)
+	app.SetViews(engine)
 
 	// Register HTTP Router
 	router := http.NewRouter(app)
@@ -41,7 +41,8 @@ func main() {
 	
 	// Ensure the session middleware wraps all HTTP routes 
 	// (in a real app you might only wrap specific route groups)
-	if sessProvider, ok := app.Get("session").(*session.Provider); ok {
+	// Use explicit SessionStore access
+	if sessProvider, ok := app.SessionStore().(*session.Provider); ok {
 		router.UseStd(sessProvider.Middleware())
 	}
 

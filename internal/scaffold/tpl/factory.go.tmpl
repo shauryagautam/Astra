@@ -1,0 +1,14 @@
+package {{ .Package }}
+
+import (
+	"github.com/shauryagautam/Astra/testing"
+	"github.com/shauryagautam/Astra/app/models"
+)
+
+// {{ .Name }}Factory defines the factory for {{ .Name }} models.
+func {{ .Name }}Factory() *testing.ModelFactory[models.{{ .Name }}] {
+	return testing.NewFactory[models.{{ .Name }}]("{{ .TableName }}").
+		SetFunc("id", func() any { return "uuid-here" })
+		{{ range .Fields }}.Set("{{ .DBName }}", "default-{{ .FieldName }}")
+		{{ end }}
+}

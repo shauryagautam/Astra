@@ -1,0 +1,156 @@
+package controllers
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/shauryagautam/Astra/pkg/identity/auth"
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+	"github.com/shauryagautam/Astra/pkg/validate"
+)
+
+type AuthController struct {
+	app *http.App
+}
+
+func NewAuthController(app *http.App) *AuthController {
+	return &AuthController{app: app}
+}
+
+// ShowRegistrationForm displays the registration form
+func (c *AuthController) ShowRegistrationForm(ctx *http.Context) error {
+	return ctx.Render("auth/register", map[string]interface{}{
+		"title": "Register",
+	})
+}
+
+// Register handles user registration
+func (c *AuthController) Register(ctx *http.Context) error {
+	var input struct {
+		Name     string `json:"name" validate:"required,min=3,max=255"`
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=8"`
+	}
+
+	if err := ctx.Bind(&input); err != nil {
+		return err
+	}
+
+	if err := validate.Validate(input); err != nil {
+		return ctx.JSON(map[string]interface{}{
+			"error": "Validation failed",
+			"details": err.Error(),
+		}, http.StatusUnprocessableEntity)
+	}
+
+	// Check if user already exists
+	var existingUser {{.ModelName}}
+	if err := c.app.DB().Where("email = ?", input.Email).First(&existingUser); err == nil {
+		return ctx.JSON(map[string]interface{}{
+			"error": "User with this email already exists",
+		}, http.StatusConflict)
+	}
+
+	// Create new user
+	user := {{.ModelName}}{
+		Name:      input.Name,
+		Email:     input.Email,
+		Password:  input.Password, // Will be hashed by model
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := c.app.DB().Create(&user); err != nil {
+		return err
+	}
+
+	// Generate token
+	token, err := auth.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return err
+	}
+
+	return ctx.JSON(map[string]interface{}{
+		"message": "Registration successful",
+		"user":    user,
+		"token":   token,
+	}, http.StatusCreated)
+}
+
+// ShowLoginForm displays the login form
+func (c *AuthController) ShowLoginForm(ctx *http.Context) error {
+	return ctx.Render("auth/login", map[string]interface{}{
+		"title": "Login",
+	})
+}
+
+// Login handles user authentication
+func (c *AuthController) Login(ctx *http.Context) error {
+	var input struct {
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required"`
+	}
+
+	if err := ctx.Bind(&input); err != nil {
+		return err
+	}
+
+	if err := validate.Validate(input); err != nil {
+		return ctx.JSON(map[string]interface{}{
+			"error": "Validation failed",
+			"details": err.Error(),
+		}, http.StatusUnprocessableEntity)
+	}
+
+	// Find user
+	var user {{.ModelName}}
+	if err := c.app.DB().Where("email = ?", input.Email).First(&user); err != nil {
+		return ctx.JSON(map[string]interface{}{
+			"error": "Invalid credentials",
+		}, http.StatusUnauthorized)
+	}
+
+	// Verify password
+	if !user.VerifyPassword(input.Password) {
+		return ctx.JSON(map[string]interface{}{
+			"error": "Invalid credentials",
+		}, http.StatusUnauthorized)
+	}
+
+	// Generate token
+	token, err := auth.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return err
+	}
+
+	return ctx.JSON(map[string]interface{}{
+		"message": "Login successful",
+		"user":    user,
+		"token":   token,
+	})
+}
+
+// Logout handles user logout
+func (c *AuthController) Logout(ctx *http.Context) error {
+	// In a real implementation, you might want to blacklist the token
+	return ctx.JSON(map[string]interface{}{
+		"message": "Logout successful",
+	})
+}
+
+// ShowDashboard displays the user dashboard
+func (c *AuthController) ShowDashboard(ctx *http.Context) error {
+	user := ctx.Get("user").({{.ModelName}})
+	return ctx.Render("auth/dashboard", map[string]interface{}{
+		"title": "Dashboard",
+		"user":  user,
+	})
+}
+
+// Profile returns the current user profile
+func (c *AuthController) Profile(ctx *http.Context) error {
+	user := ctx.Get("user").({{.ModelName}})
+	return ctx.JSON(map[string]interface{}{
+		"user": user,
+	})
+}

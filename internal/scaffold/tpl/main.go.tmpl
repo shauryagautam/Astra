@@ -1,0 +1,30 @@
+package main
+
+import (
+	"context"
+	"log"
+
+	"github.com/shauryagautam/Astra/pkg/engine"
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+	"github.com/shauryagautam/Astra/pkg/database"
+	"{{.AppName}}/internal/routes"
+)
+
+func main() {
+	app, cleanup, err := InitializeApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize app: %v", err)
+	}
+	defer cleanup()
+
+	// Initialize Routes
+	if r, ok := app.Router().(*http.Router); ok {
+		routes.Register(r)
+	}
+
+	// Start the Application
+	if err := app.Start(); err != nil {
+		log.Fatalf("App failed: %v", err)
+	}
+}
+

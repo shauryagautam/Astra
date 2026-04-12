@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astra Cockpit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .sidebar-link.active { background: rgba(99, 102, 241, 0.1); color: #818cf8; border-right: 2px solid #818cf8; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen flex overflow-hidden" x-data="cockpit()">
+    <!-- Sidebar -->
+    <aside class="w-64 border-r border-slate-800 flex flex-col glass z-50">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">A</div>
+            <span class="font-bold text-lg tracking-tight">ASTRA <span class="text-indigo-400">COCKPIT</span></span>
+        </div>
+        
+        <nav class="flex-1 py-6 overflow-y-auto">
+            <div class="px-6 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Observability</div>
+            <a href="#" @click.prevent="tab = 'overview'" :class="tab === 'overview' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i> Overview
+            </a>
+            <a href="#" @click.prevent="tab = 'entries'" :class="tab === 'entries' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="activity" class="w-4 h-4"></i> Event Stream
+            </a>
+            
+            <div class="px-6 mt-8 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Inspection</div>
+            <a href="#" @click.prevent="tab = 'db'" :class="tab === 'db' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="database" class="w-4 h-4"></i> Query Watcher
+            </a>
+            <a href="#" @click.prevent="tab = 'mails'" :class="tab === 'mails' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="mail" class="w-4 h-4"></i> Mail Sandbox
+            </a>
+            <a href="#" @click.prevent="tab = 'queues'" :class="tab === 'queues' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="list-tree" class="w-4 h-4"></i> Queue Monitor
+            </a>
+            
+            <div class="px-6 mt-8 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">System</div>
+            <a href="#" @click.prevent="tab = 'routes'" :class="tab === 'routes' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="map" class="w-4 h-4"></i> Routes
+            </a>
+            <a href="#" @click.prevent="tab = 'config'" :class="tab === 'config' ? 'sidebar-link active' : 'sidebar-link'" class="flex items-center gap-3 px-6 py-3 text-sm font-medium hover:bg-slate-800/50 transition-colors">
+                <i data-lucide="settings" class="w-4 h-4"></i> Config
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="h-16 border-b border-slate-800 glass z-40 px-8 flex items-center justify-between shrink-0">
+            <h2 class="text-lg font-bold" x-text="tab.charAt(0).toUpperCase() + tab.slice(1)"></h2>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border border-emerald-400/20 text-emerald-400 bg-emerald-400/10">
+                    <span class="w-2 h-2 rounded-full animate-pulse bg-emerald-400"></span>
+                    Live Connected
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8">
+            <!-- Overview Tab -->
+            <div x-show="tab === 'overview'" x-transition x-cloak class="space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <template x-for="(stat, key) in stats" :key="key">
+                        <div class="glass p-6 rounded-2xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-slate-400 text-xs font-bold uppercase tracking-widest" x-text="'Total ' + key"></span>
+                                <div class="w-8 h-8 rounded-lg bg-slate-500/10 flex items-center justify-center">
+                                    <i data-lucide="hash" class="w-4 h-4 text-slate-400"></i>
+                                </div>
+                            </div>
+                            <div class="text-3xl font-bold" x-text="stat"></div>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 font-semibold">System Info</div>
+                    <div class="p-6 grid grid-cols-2 gap-8 text-sm">
+                        <div class="space-y-4">
+                            <div class="flex justify-between border-b border-slate-800 pb-2">
+                                <span class="text-slate-500">App Name</span>
+                                <span class="font-medium font-mono" x-text="configData.app?.name || 'Astra App'"></span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-2">
+                                <span class="text-slate-500">Environment</span>
+                                <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-xs" x-text="configData.app?.env || 'dev'"></span>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between border-b border-slate-800 pb-2">
+                                <span class="text-slate-500">Host / Port</span>
+                                <span class="font-medium font-mono" x-text="(configData.app?.host || 'localhost') + ':' + (configData.app?.port || '3000')"></span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-2">
+                                <span class="text-slate-500">Database</span>
+                                <span class="font-medium text-slate-400">Postgres</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Stream -->
+            <div x-show="tab === 'entries'" x-transition x-cloak class="space-y-6">
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-900/50">
+                                <th class="px-6 py-4">Time</th>
+                                <th class="px-6 py-4">Type</th>
+                                <th class="px-6 py-4">Message</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/50 text-sm">
+                            <template x-for="entry in entries" :key="entry.timestamp + entry.type">
+                                <tr class="hover:bg-slate-800/30 transition-colors">
+                                    <td class="px-6 py-4 text-xs font-mono text-slate-500" x-text="new Date(entry.timestamp).toLocaleTimeString()"></td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-500/10 text-slate-400" x-text="entry.type"></span>
+                                    </td>
+                                    <td class="px-6 py-4 font-medium text-slate-200" x-text="entry.message"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Query Watcher Tab -->
+            <div x-show="tab === 'db'" x-transition x-cloak>
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 font-semibold flex justify-between">
+                        <span>SQL Timeline</span>
+                        <span class="text-xs text-slate-500" x-text="queries.length + ' queries captured'"></span>
+                    </div>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-900/50">
+                                <th class="px-6 py-4">Time</th>
+                                <th class="px-6 py-4">Query</th>
+                                <th class="px-6 py-4 text-right">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/50 text-sm font-mono">
+                            <template x-for="q in queries" :key="q.timestamp">
+                                <tr class="hover:bg-slate-800/30 transition-colors">
+                                    <td class="px-6 py-4 text-xs text-slate-500" x-text="new Date(q.timestamp).toLocaleTimeString()"></td>
+                                    <td class="px-6 py-4 text-slate-300">
+                                        <div class="break-all whitespace-pre-wrap" x-text="q.message"></div>
+                                        <template x-if="q.data && q.data.params">
+                                            <div class="mt-2 text-xs text-indigo-300 bg-indigo-500/10 p-2 rounded max-w-2xl break-all">
+                                                Bindings: <span x-text="JSON.stringify(q.data.params)"></span>
+                                            </div>
+                                        </template>
+                                    </td>
+                                    <td class="px-6 py-4 text-right" :class="q.duration_ms > 100 ? 'text-amber-400' : 'text-emerald-400'" x-text="q.duration_ms + 'ms'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mail Sandbox -->
+            <div x-show="tab === 'mails'" x-transition x-cloak>
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-lg">Inbox (<span x-text="mailsData.count"></span>)</h3>
+                    <button @click="clearMails()" class="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-sm font-bold border border-rose-500/20 hover:bg-rose-500/20">Clear Inbox</button>
+                </div>
+                
+                <template x-if="!mailsData.enabled">
+                    <div class="p-8 text-center glass rounded-2xl text-slate-400 border-dashed">
+                        <i data-lucide="mail-x" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
+                        Mail Sandbox is not enabled in this environment.
+                    </div>
+                </template>
+
+                <div class="space-y-4" x-show="mailsData.enabled">
+                    <template x-for="mail in mailsData.mails" :key="mail.sent_at">
+                        <div class="glass rounded-xl border border-slate-800 overflow-hidden">
+                            <div class="px-6 py-4 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-bold text-slate-200" x-text="mail.subject"></h4>
+                                    <div class="text-xs text-slate-400 mt-1">
+                                        To: <span class="text-indigo-400" x-text="mail.to.join(', ')"></span> 
+                                        &bull; From: <span x-text="mail.from"></span>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-mono text-slate-500" x-text="new Date(mail.sent_at).toLocaleString()"></span>
+                            </div>
+                            <div class="p-6 bg-white/5 text-slate-300 text-sm whitespace-pre-wrap font-sans">
+                                <iframe class="w-full h-96 border-none bg-slate-100 rounded-lg" 
+                                        :srcdoc="mail.html || ('<pre style=\'white-space: pre-wrap; font-family: sans-serif; color: #334155; padding: 20px;\'>' + escapeHtml(mail.text || '') + '</pre>')"
+                                        sandbox="">
+                                </iframe>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Queue Monitor -->
+            <div x-show="tab === 'queues'" x-transition x-cloak>
+                <template x-if="!queuesData.enabled">
+                    <div class="p-8 text-center glass rounded-2xl text-slate-400 border-dashed">
+                        Queue Monitor is not active in this environment.
+                    </div>
+                </template>
+                <div class="grid grid-cols-1 gap-6" x-show="queuesData.enabled">
+                    <template x-for="q in queuesData.queues" :key="q.name">
+                        <div class="glass rounded-2xl border border-slate-800 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <h3 class="text-lg font-bold text-indigo-400 mb-1" x-text="q.name"></h3>
+                                <div class="text-xs text-slate-500">Worker processes are pulling from this queue</div>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-4">
+                                <div class="text-center px-6 py-2 border-r border-slate-800">
+                                    <div class="text-2xl font-bold text-emerald-400" x-text="q.pending"></div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mt-1">Pending</div>
+                                </div>
+                                <div class="text-center px-6 py-2 border-r border-slate-800">
+                                    <div class="text-2xl font-bold text-blue-400" x-text="q.processing"></div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mt-1">Processing</div>
+                                </div>
+                                <div class="text-center px-6 py-2 border-r border-slate-800">
+                                    <div class="text-2xl font-bold text-amber-400" x-text="q.scheduled"></div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mt-1">Scheduled</div>
+                                </div>
+                                <div class="text-center px-6 py-2">
+                                    <div class="text-2xl font-bold text-rose-400" x-text="q.failed"></div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mt-1">Failed</div>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <template x-if="q.failed > 0">
+                                    <button @click="retryQueue(q.name)" class="px-4 py-2 bg-indigo-500/10 text-indigo-400 rounded-lg text-xs font-bold border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
+                                        Retry Failed
+                                    </button>
+                                </template>
+                                <button @click="purgeQueue(q.name)" class="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-xs font-bold border border-rose-500/20 hover:bg-rose-500/20 transition-colors">
+                                    Purge All
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Routes Tab -->
+            <div x-show="tab === 'routes'" x-transition x-cloak>
+                <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-900/50">
+                                <th class="px-6 py-4 w-24">Method</th>
+                                <th class="px-6 py-4">Pattern</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/50 text-sm font-mono">
+                            <template x-for="r in routesList" :key="r.method + r.pattern">
+                                <tr class="hover:bg-slate-800/30 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-500/10 text-slate-300" x-text="r.method"></span>
+                                    </td>
+                                    <td class="px-6 py-4 text-slate-300" x-text="r.pattern"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div x-show="tab === 'config'" x-transition x-cloak>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <template x-for="(values, section) in configData" :key="section">
+                        <div class="glass rounded-2xl border border-slate-800 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 font-bold uppercase text-xs tracking-widest text-indigo-400" x-text="section"></div>
+                            <div class="p-6 space-y-4">
+                                <template x-for="(v, k) in values" :key="k">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500 font-medium" x-text="k"></span>
+                                        <span class="font-mono text-slate-300" x-text="v"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('cockpit', () => ({
+                tab: 'overview',
+                entries: [],
+                queries: [],
+                stats: { http: 0, query: 0, log: 0, event: 0 },
+                configData: {},
+                routesList: [],
+                mailsData: { enabled: false, count: 0, mails: [] },
+                queuesData: { enabled: false, queues: [] },
+
+                async init() {
+                    lucide.createIcons();
+                    await this.loadData();
+                    
+                    // Periodic refresh for mails and queues
+                    setInterval(() => {
+                        this.loadBackgroundData();
+                    }, 2000);
+
+                    // SSE Stream
+                    const es = new EventSource('/__astra/api/stream');
+                    es.onmessage = (e) => {
+                        const evt = JSON.parse(e.data);
+                        this.entries.unshift(evt);
+                        if (this.entries.length > 500) this.entries.pop();
+                        
+                        if (evt.type === 'query') {
+                            this.queries.unshift(evt);
+                            if (this.queries.length > 200) this.queries.pop();
+                        }
+                        
+                        if (this.stats[evt.type] !== undefined) {
+                            this.stats[evt.type]++;
+                        }
+                    };
+                },
+
+                async loadData() {
+                    const [entriesRes, routesRes, configRes, mailsRes, queuesRes] = await Promise.all([
+                        fetch('/__astra/api/entries'),
+                        fetch('/__astra/api/routes'),
+                        fetch('/__astra/api/config'),
+                        fetch('/__astra/api/mails'),
+                        fetch('/__astra/api/queues')
+                    ]);
+                    
+                    const allEntries = await entriesRes.json();
+                    allEntries.reverse(); // newest first
+                    this.entries = allEntries;
+                    this.queries = allEntries.filter(e => e.type === 'query');
+                    
+                    this.routesList = await routesRes.json();
+                    this.configData = await configRes.json();
+                    this.mailsData = await mailsRes.json();
+                    this.queuesData = await queuesRes.json();
+                    
+                    // compute stats
+                    allEntries.forEach(e => {
+                        if (this.stats[e.type] !== undefined) this.stats[e.type]++;
+                    });
+                },
+
+                async loadBackgroundData() {
+                    if (this.tab === 'mails') {
+                        const res = await fetch('/__astra/api/mails');
+                        this.mailsData = await res.json();
+                    } else if (this.tab === 'queues') {
+                        const res = await fetch('/__astra/api/queues');
+                        this.queuesData = await res.json();
+                    }
+                },
+
+                async clearMails() {
+                    if (!confirm("Clear inbox?")) return;
+                    await fetch('/__astra/api/mails', { method: 'DELETE' });
+                    await this.loadBackgroundData();
+                },
+
+                async retryQueue(name) {
+                    await fetch(`/__astra/api/queues/${name}/retry`, { method: 'POST' });
+                    await this.loadBackgroundData();
+                },
+                
+                async purgeQueue(name) {
+                    if (!confirm(`Purge ALL jobs in queue: ${name}?`)) return;
+                    await fetch(`/__astra/api/queues/${name}/purge`, { method: 'POST' });
+                    await this.loadBackgroundData();
+                },
+
+                escapeHtml(unsafe) {
+                    if (typeof unsafe !== 'string') return '';
+                    return unsafe
+                         .replace(/&/g, "&amp;")
+                         .replace(/</g, "&lt;")
+                         .replace(/>/g, "&gt;")
+                         .replace(/"/g, "&quot;")
+                         .replace(/'/g, "&#039;");
+                }
+            }));
+        });
+        
+        // Re-init icons when tab changes
+        document.addEventListener('alpine:initialized', () => {
+            setTimeout(() => lucide.createIcons(), 100);
+        });
+    </script>
+</body>
+</html>

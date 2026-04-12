@@ -1,6 +1,6 @@
 # ssr_auth
 
-Built with the [Astra](https://github.com/astraframework/astra) framework.
+Built with the [Astra](https://github.com/shauryagautam/Astra) framework.
 
 ## Quickstart
 

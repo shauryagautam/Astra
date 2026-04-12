@@ -1,0 +1,11 @@
+package {{ .Package }}
+
+import (
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+)
+
+// {{ .Name }}Handler handles {{ .NameLower }} requests.
+func {{ .Name }}Handler(c *http.Context) error {
+	// TODO: implement handler logic
+	return c.Success(nil)
+}

@@ -1,0 +1,98 @@
+package handlers
+
+import (
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+	"github.com/shauryagautam/Astra/pkg/identity/auth"
+)
+
+type AuthController struct {
+	jwtManager *auth.JWTManager
+}
+
+func NewAuthController(jwtManager *auth.JWTManager) *AuthController {
+	return &AuthController{
+		jwtManager: jwtManager,
+	}
+}
+
+// Login handles user authentication
+func (ac *AuthController) Login(c *http.Context) error {
+	var req struct {
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=6"`
+	}
+
+	if err := c.BindAndValidate(&req); err != nil {
+		return c.ValidationError(err)
+	}
+
+	// TODO: Implement actual authentication logic
+	// This is where you'd verify credentials against your database
+	if req.Email != "admin@example.com" || req.Password != "password" {
+		return c.UnauthorizedError("Invalid credentials")
+	}
+
+	// Generate JWT token
+	tokenPair, err := ac.jwtManager.IssueTokenPair(c.Ctx(), "user-123", map[string]any{
+		"email": req.Email,
+		"role":  "admin",
+	})
+	if err != nil {
+		return c.InternalError("Failed to generate token")
+	}
+
+	return c.SuccessWithMeta(map[string]any{
+		"user":  map[string]any{"id": "user-123", "email": req.Email},
+		"token": tokenPair,
+	}, "Authentication successful")
+}
+
+// Register handles user registration
+func (ac *AuthController) Register(c *http.Context) error {
+	var req struct {
+		Name     string `json:"name" validate:"required,min=2"`
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=6"`
+	}
+
+	if err := c.BindAndValidate(&req); err != nil {
+		return c.ValidationError(err)
+	}
+
+	// TODO: Implement actual registration logic
+	// This is where you'd create the user in your database
+
+	return c.Created("Registration successful", map[string]any{
+		"message": "User registered successfully",
+		"user": map[string]any{
+			"name":  req.Name,
+			"email": req.Email,
+		},
+	})
+}
+
+// Refresh handles token refresh
+func (ac *AuthController) Refresh(c *http.Context) error {
+	var req struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+
+	if err := c.BindAndValidate(&req); err != nil {
+		return c.ValidationError(err)
+	}
+
+	// Verify refresh token and issue new tokens
+	newPair, err := ac.jwtManager.Refresh(c.Ctx(), req.RefreshToken)
+	if err != nil {
+		return c.UnauthorizedError("Invalid refresh token")
+	}
+
+	return c.Success(newPair, "Token refreshed successfully")
+}
+
+// Logout handles user logout
+func (ac *AuthController) Logout(c *http.Context) error {
+	// TODO: Implement token invalidation if needed
+	// For JWT, you might want to maintain a blacklist
+	return c.Success(nil, "Logged out successfully")
+}

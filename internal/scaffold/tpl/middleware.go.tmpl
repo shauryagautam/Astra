@@ -1,0 +1,20 @@
+package {{ .Package }}
+
+import (
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+)
+
+// {{ .Name }} is a middleware that processes {{ .NameLower }} logic.
+func {{ .Name }}() http.MiddlewareFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(c *http.Context) error {
+			// TODO: implement middleware logic (before)
+
+			err := next(c)
+
+			// TODO: implement middleware logic (after)
+
+			return err
+		}
+	}
+}

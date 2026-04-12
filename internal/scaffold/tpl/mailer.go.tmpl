@@ -1,0 +1,21 @@
+package {{ .Package }}
+
+import (
+	"context"
+	"github.com/shauryagautam/Astra/pkg/mail"
+)
+
+// {{ .Name }} represents a mailer for {{ .NameLower }}.
+type {{ .Name }} struct {
+	mail.Mailer
+}
+
+// Send sends the {{ .NameLower }} email.
+func (m *{{ .Name }}) Send(ctx context.Context, to string) error {
+	msg := &mail.Message{
+		To:      []string{to},
+		Subject: "{{ .Name }}",
+		Body:    "Hello from Astra!",
+	}
+	return m.Mailer.Send(ctx, msg)
+}

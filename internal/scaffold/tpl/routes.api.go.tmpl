@@ -1,0 +1,16 @@
+package routes
+
+import (
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+)
+
+func Register(r *http.Router) {
+	// Apply secure headers by default
+	r.Use(http.SecureHeaders({{.SecurityConfig}}))
+
+	r.Get("/health", http.HealthHandler())
+	r.Get("/ready", http.ReadyHandler())
+
+	// Add your routes here
+	// r.Get("/", "HomeController@Index")
+}

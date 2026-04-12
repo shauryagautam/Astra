@@ -1,0 +1,22 @@
+//go:build wireinject
+// +build wireinject
+
+package main
+
+import (
+	"github.com/google/wire"
+	"github.com/shauryagautam/Astra/pkg/engine"
+	"github.com/shauryagautam/Astra/pkg/database"
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+)
+
+// InitializeApp assembles all dependencies into a engine.App instance.
+// In Astra, this is the single source of truth for the application graph.
+func InitializeApp() (*engine.App, func(), error) {
+	panic(wire.Build(
+		engine.New,
+		database.ProvideDB,
+		http.ProvideRouter,
+		// Add more providers here
+	))
+}

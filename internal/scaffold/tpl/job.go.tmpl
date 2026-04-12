@@ -1,0 +1,22 @@
+package {{ .Package }}
+
+import (
+	"github.com/shauryagautam/Astra/pkg/queue"
+)
+
+// {{ .Name }}Job processes {{ .NameLower }} work in the background.
+type {{ .Name }}Job struct {
+	queue.BaseJob
+	// TODO: add your job fields here
+}
+
+// Handle contains the job logic. This runs asynchronously.
+func (j *{{ .Name }}Job) Handle() error {
+	// TODO: implement job logic
+	return nil
+}
+
+// Queue returns which queue this job is dispatched to.
+func (j *{{ .Name }}Job) Queue() string {
+	return "default"
+}

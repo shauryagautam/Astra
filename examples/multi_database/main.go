@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/astraframework/astra/orm"
+	internaldb "github.com/shauryagautam/Astra/pkg/database"
+	"github.com/shauryagautam/Astra/pkg/database"
 )
 
 type User struct {
-	orm.Model
+	database.Model
 	Name  string `orm:"column:name"`
 	Email string `orm:"column:email"`
 }
@@ -22,7 +23,7 @@ func main() {
 	// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 	// Primary Database (Postgres)
-	pg, err := orm.Open(orm.Config{
+	pg, err := database.Open(internaldb.Config{
 		Driver: "postgres",
 		DSN:    "postgres://user:pass@localhost:5432/primary?sslmode=disable",
 	})
@@ -33,7 +34,7 @@ func main() {
 
 	// Standard ORM operations
 	user := User{Name: "John Doe", Email: "john@example.com"}
-	if _, err := orm.Query[User](pg).Create(user, ctx); err != nil {
+	if _, err := database.NewQueryBuilder[User](pg).Create(&user, ctx); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("✅ Created user in Postgres: %d\n", user.ID)
@@ -43,7 +44,7 @@ func main() {
 	// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 	// Secondary Database (MySQL)
-	my, err := orm.Open(orm.Config{
+	my, err := database.Open(internaldb.Config{
 		Driver: "mysql",
 		DSN:    "user:pass@tcp(localhost:3306)/secondary",
 	})

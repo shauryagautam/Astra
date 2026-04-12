@@ -1,0 +1,40 @@
+package {{ .Package }}
+
+import (
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+)
+
+// {{ .Name }}Controller handles HTTP requests for {{ .NameLower }}s.
+type {{ .Name }}Controller struct {
+	// Add your dependencies here (e.g., Services, Repositories)
+}
+
+// Index returns a list of items.
+// GET /{{ .TableName }}
+func (ctrl *{{ .Name }}Controller) Index(c *http.Context) error {
+	return c.Success(nil)
+}
+
+// Store creates a new item.
+// POST /{{ .TableName }}
+func (ctrl *{{ .Name }}Controller) Store(c *http.Context) error {
+	return c.Created(nil)
+}
+
+// Show returns a single item.
+// GET /{{ .TableName }}/:id
+func (ctrl *{{ .Name }}Controller) Show(c *http.Context) error {
+	return c.Success(nil)
+}
+
+// Update modifies an existing item.
+// PUT /{{ .TableName }}/:id
+func (ctrl *{{ .Name }}Controller) Update(c *http.Context) error {
+	return c.Success(nil)
+}
+
+// Destroy removes an item.
+// DELETE /{{ .TableName }}/:id
+func (ctrl *{{ .Name }}Controller) Destroy(c *http.Context) error {
+	return c.NoContent()
+}

@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/astraframework/astra/core"
-	"github.com/astraframework/astra/http"
-	"github.com/astraframework/astra/orm"
-	"github.com/astraframework/astra/storage"
-	"github.com/astraframework/astra/validate"
+	"github.com/shauryagautam/Astra/pkg/engine"
+	"github.com/shauryagautam/Astra/pkg/engine/http"
+	"github.com/shauryagautam/Astra/pkg/database"
+	"github.com/shauryagautam/Astra/pkg/storage"
+	"github.com/shauryagautam/Astra/pkg/validate"
 
 	"api_only/routes"
 )
 
 func main() {
-	app, err := core.New()
+	app, err := framework.New()
 	if err != nil {
 		log.Fatalf("Failed to initialize app: %v", err)
 	}
@@ -31,11 +31,10 @@ func main() {
 
 	// Initialize the Database schema for the example
 	app.OnStart(func(ctx context.Context) error {
-		dbRaw := app.Get("db")
-		if dbRaw == nil {
+		db := app.DB()
+		if db == nil {
 			return fmt.Errorf("database not initialized")
 		}
-		db := dbRaw.(*orm.DB)
 		
 		// Create the table (in a real app, use migrations)
 		_, err := db.Exec(context.Background(), `
@@ -69,19 +68,17 @@ func main() {
 
 // Simple Validate Provider to wire validate.Validator into container
 type validateProvider struct {
-	core.BaseProvider
+	engine.BaseProvider
 }
 
-func (p *validateProvider) Register(app *core.App) error {
+func (p *validateProvider) Register(app *engine.App) error {
 	var opts []validate.ValidatorOption
 	
 	// If DB is available, wire it in for exists/unique rules
-	if dbRaw := app.Get("db"); dbRaw != nil {
-		if db, ok := dbRaw.(validate.DBExecutor); ok {
-			opts = append(opts, validate.WithDB(db))
-		}
+	if db := app.DB(); db != nil {
+		opts = append(opts, validate.WithDB(db))
 	}
 	
-	app.Register("validator", validate.New(opts...))
+	app.SetValidator(validate.New(opts...))
 	return nil
 }
