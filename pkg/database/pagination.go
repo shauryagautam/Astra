@@ -1,6 +1,6 @@
 package database
 
-// PaginationResult holds the results of a paginated query (AdonisJS-inspired naming)
+// PaginationResult holds the results of a paginated query
 type PaginationResult[T any] struct {
 	Data        []T               `json:"data"`
 	Total       int64             `json:"total"`

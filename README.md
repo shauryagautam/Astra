@@ -1,36 +1,49 @@
 # Astra Framework
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/shauryagautam/Astra/main/assets/logo.png" width="200" alt="Astra Logo">
-</p>
+[**astraframework.appwrite.network**](https://astraframework.appwrite.network/)
 
-<p align="center">
-  <b>A batteries-included, production-grade Go web framework inspired by AdonisJS and Ruby on Rails.</b>
-</p>
+**A batteries-included, production-grade Go web framework.**
 
-<p align="center">
-  <a href="https://goreportcard.com/report/github.com/shauryagautam/Astra"><img src="https://goreportcard.com/badge/github.com/shauryagautam/Astra" alt="Go Report Card"></a>
-  <a href="https://pkg.go.dev/github.com/shauryagautam/Astra"><img src="https://pkg.go.dev/badge/github.com/shauryagautam/Astra.svg" alt="Go Reference"></a>
-  <a href="https://github.com/shauryagautam/Astra/actions/workflows/pipeline.yml"><img src="https://github.com/shauryagautam/Astra/actions/workflows/pipeline.yml/badge.svg" alt="CI/CD Pipeline"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-</p>
+[![Go Report Card](https://goreportcard.com/badge/github.com/shauryagautam/Astra)](https://goreportcard.com/report/github.com/shauryagautam/Astra) [![Go Reference](https://pkg.go.dev/badge/github.com/shauryagautam/Astra.svg)](https://pkg.go.dev/badge/github.com/shauryagautam/Astra) [![CI/CD Pipeline](https://github.com/shauryagautam/Astra/actions/workflows/pipeline.yml/badge.svg)](https://github.com/shauryagautam/Astra/actions/workflows/pipeline.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 Astra provides everything you need to build scalable, secure, and maintainable applications with Go. It prioritizes **Developer Experience (DX)**, **Security by Default**, and **Operational Maturity**.
 
-## 🚀 Key Features
+## 📍 Table of Contents
+
+- [✨ Why Astra?](#why-astra)
+- [🚀 Key Features](#key-features)
+- [🏁 Quickstart](#quickstart)
+- [📖 Documentation](#documentation)
+- [🏗 Project Structure](#project-structure)
+- [🧪 Testing](#testing)
+- [🤝 Contributing](#contributing)
+- [📄 License](#license)
+
+---
+
+## Why Astra?
+
+Astra was built to solve the "configuration fatigue" in the Go ecosystem. While Go is powerful, setting up a production-ready web server often requires stitching together dozens of libraries. Astra gives you a cohesive, opinions-included foundation:
+
+- **💨 Zero to Production**: Pre-configured with everything from database migrations to OpenTelemetry.
+- **🎨 Modern Frontend**: First-class support for Vite, allowing you to build rich SSR or SPA apps seamlessly.
+- **🛡️ Secure by Design**: Transparent encryption for sensitive data and automatic security headers.
+- **📈 Scalable Architecture**: Built-in support for Redis Sentinel, Cluster, and multi-tenant background jobs.
+
+## Key Features
 
 | Category | Capabilities |
 | --- | --- |
-| **⚡️ Performance** | Multi-threaded Event Emitter, Bytedance Sonic JSON, Cursor-based Pagination |
-| **🛡️ Security** | Transparent PII Encryption, PSR Audit Logging, PKCE OAuth2, CSP Nonce Middleware |
-| **📦 Batteries** | Unified Migration Runner (Advisory Locking), Redis Sentinel/Cluster, Background Jobs |
-| **🛠️ DX & Tooling** | High-fidelity Scaffolding, Real-time Dev Dashboard (SSE), Key Rotation CLI |
+| **⚡️ Performance** | Multi-threaded Event Emitter, Bytedance Sonic JSON engine, high-speed routing |
+| **🛡️ Security** | Transparent PII Encryption, PSR Audit Logging, PKCE OAuth2, CSP & HSTS middleware |
+| **📦 Batteries** | Unified Migration Runner (Advisory Locking), Redis Sentinel, Job Queues |
+| **🛠️ DX & Tooling** | High-fidelity Scaffolding, SSE-powered Dev Dashboard, Key Rotation CLI |
 | **🌐 Web & SSR** | Native Vite Integration, Asset Helpers, Flash Messages, WebSocket Channels |
-| **📈 Ops Ready** | OpenTelemetry, Prometheus Metrics (/metrics), Centralized Health/Readiness |
+| **📈 Ops Ready** | OpenTelemetry, Prometheus (/metrics), Liveness/Readiness probes |
 
-## 🏁 Quickstart (Build an app in 5 minutes)
+## Quickstart
 
 ### 1. Install the CLI
 
@@ -53,55 +66,60 @@ make setup
 astra dev
 ```
 
+Your app is now running at `http://localhost:3333` with **Auto-Reload** enabled!
 
-Your app is now running at `http://localhost:3333` with Auto-Reload enabled!
-
-## 📖 Documentation
+## Documentation
 
 - **[01. Foundation](docs/01-foundation.md)** - From Zero to Production.
 - **[02. Architecture](docs/02-architecture.md)** - Understand the Core, IoC, and Providers.
 - **[03. Security](docs/03-security.md)** - Guards, RBAC, and policies.
 - **[04. Persistence](docs/04-persistence.md)** - Fluent models, relationships, and migrations.
+- **[05. Frontend](docs/05-frontend.md)** - Vite integration, SSR, and assets.
 - **[06. Observability](docs/06-observability.md)** - Logs, Traces, and Resilience.
+- **[07. Testing](docs/07-testing.md)** - Expressive integration and unit tests.
 - **[08. Deployment](docs/08-deployment.md)** - Docker, Kubernetes, and Cloud.
 
-## 🏗 Project Structure
+## Project Structure
 
-Astra follows a clean, explicit structure to keep your codebase predictable:
+Astra enforces a clean, predictable directory layout inspired by industry best practices:
 
 ```text
 ├── app/
-│   ├── handler/       # Request handlers
-│   ├── schema/        # Data models & validation
-│   └── jobs/          # Background tasks
+│   ├── handler/       # Request handlers (Controllers)
+│   ├── schema/        # Data models, validation & DTOs
+│   ├── jobs/          # Background task logic
+│   └── middleware/    # Application-specific middleware
 ├── database/
-│   ├── migrations/    # SQL migration files
-│   └── seeders/       # Test data sets
-├── routes/            # Route definitions
-├── shared/            # Shared types and clients
+│   ├── migrations/    # Versioned SQL migration files
+│   └── seeders/       # Test data sets for development
+├── internal/          # Private core framework logic
+├── pkg/               # Publicly exportable packages
+├── routes/            # Route definitions & registration
+├── shared/            # Shared types, constants, and clients
 ├── main.go            # Application entry point
 └── wire.go            # Dependency injection source
 ```
 
-## 🧪 Testing
+## Testing
 
-Astra is built for testability. Use our high-fidelity Test Client for expressive integration tests:
+Astra is built for testability. Use our high-fidelity `test_util` package for expressive integration tests:
 
 ```go
 func TestUserCreation(t *testing.T) {
-    app := testing.NewTestApp(t)
+    // 1. Initialize Test App with temporary resources
+    app := test_util.NewTestApp(t, nil)
     
-    app.POST("/users", `{"name": "John"}`).
+    // 2. Perform actions and assert results fluently
+    app.POST("/users", map[string]string{"name": "John"}).
         ExpectStatus(201).
         ExpectJSON("name", "John")
 }
 ```
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Please see our **[Contributing Guide](CONTRIBUTING.md)** for details.
+We welcome contributions! Whether it's a bug report, feature request, or a PR, check out our **[Contributing Guide](CONTRIBUTING.md)** to get started.
 
-## 📄 License
+## License
 
 Astra is open-source software licensed under the **[MIT License](LICENSE)**.
-
