@@ -1,7 +1,8 @@
 linters-settings:
   govet:
-    check-shadowing: true
     enable-all: true
+  shadow:
+    strict: false
   golint:
     min-confidence: 0.8
   gofmt:
@@ -18,10 +19,7 @@ linters:
     - staticcheck
     - unused
     - gosimple
-    - structcheck
-    - varcheck
     - ineffassign
-    - deadcode
     - typecheck
     - bodyclose
     - stylecheck
