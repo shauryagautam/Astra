@@ -2,54 +2,71 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	nethttp "net/http"
 
 	"github.com/shauryagautam/Astra/pkg/engine"
+	"github.com/shauryagautam/Astra/pkg/engine/config"
 	"github.com/shauryagautam/Astra/pkg/engine/http"
+	"github.com/shauryagautam/Astra/pkg/engine/providers"
 	"github.com/shauryagautam/Astra/pkg/session"
-	"github.com/shauryagautam/Astra/pkg/storage"
-	
+
 	"ssr_auth/routes"
 )
 
 func main() {
-	app, err := framework.New()
+	// 1. Load configuration
+	rawConfig, err := config.Load(".")
 	if err != nil {
-		log.Fatalf("Failed to initialize app: %v", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
+	cfg := config.LoadFromEnv(rawConfig)
+	logger := slog.Default()
+
+	// 2. Initialize App Lifecycle Manager
+	app := engine.New(cfg, rawConfig, logger)
+
+	// Create cookie store for sessions
+	store := session.NewCookieStore([]byte("supersecret32bytesminimum1234567"))
 
 	// Register session provider for auth state and flash messages
-	app.Use(session.NewProvider(session.Config{
-		Store:      session.NewCookieStore([]byte("supersecret32bytesminimum1234567")),
-		CookieName: "astra_session",
-		MaxAge:     86400 * 30, // 30 days
-		Secure:     false,      // For local dev
-		SameSite:   nethttp.SameSiteLaxMode,
-	}))
+	app.RegisterProvider(providers.NewSessionProvider(store))
 
 	// Register storage provider
-	app.Use(storage.NewProvider())
+	app.RegisterProvider(providers.NewStorageProvider())
 
 	// Configure Template Engine for SSR Views
-	// This makes it available as `views` to `c.Render`
-	engine := http.NewTemplateEngine("views")
-	app.SetViews(engine)
+	viewEngine := http.NewTemplateEngine("views")
 
 	// Register HTTP Router
-	router := http.NewRouter(app)
-	routes.Register(router)
-	
-	// Ensure the session middleware wraps all HTTP routes 
-	// (in a real app you might only wrap specific route groups)
-	// Use explicit SessionStore access
-	if sessProvider, ok := app.SessionStore().(*session.Provider); ok {
-		router.UseStd(sessProvider.Middleware())
-	}
+	router := http.NewRouter(cfg, logger)
 
-	app.Use(http.NewHTTPProvider(router.Handler()))
+	// Register session middleware on the router
+	router.Use(http.SessionMiddleware(store))
 
-	log.Println("Starting SSR Auth Server on :3333")
-	if err := app.Start(); err != nil {
+	// Register view engine middleware to set ViewEngine on context
+	router.Use(func(next nethttp.Handler) nethttp.Handler {
+		return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			if c := http.FromRequest(r); c != nil {
+				c.ViewEngine = viewEngine
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	routes.Register(router, app)
+
+	app.RegisterProvider(providers.NewHTTPProvider(router))
+
+	// Start server (simplified bootstrap)
+	go func() {
+		log.Println("Starting SSR Auth Server on :3333")
+		if err := nethttp.ListenAndServe(":3333", router); err != nil {
+			log.Fatalf("server failed: %v", err)
+		}
+	}()
+
+	if err := app.Run(); err != nil {
 		log.Fatalf("App failed: %v", err)
 	}
 }

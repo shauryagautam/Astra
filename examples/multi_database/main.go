@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	internaldb "github.com/shauryagautam/Astra/pkg/database"
 	"github.com/shauryagautam/Astra/pkg/database"
 )
 
@@ -23,7 +22,7 @@ func main() {
 	// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 	// Primary Database (Postgres)
-	pg, err := database.Open(internaldb.Config{
+	pg, err := database.Open(database.Config{
 		Driver: "postgres",
 		DSN:    "postgres://user:pass@localhost:5432/primary?sslmode=disable",
 	})
@@ -44,7 +43,7 @@ func main() {
 	// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 	// Secondary Database (MySQL)
-	my, err := database.Open(internaldb.Config{
+	my, err := database.Open(database.Config{
 		Driver: "mysql",
 		DSN:    "user:pass@tcp(localhost:3306)/secondary",
 	})

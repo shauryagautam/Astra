@@ -64,7 +64,7 @@ func (h *CreateTodoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Title: req.Title,
 	}
 
-	if _, err := database.NewQueryBuilder[schema.Todo](h.DB).Create(todo, r.Context()); err != nil {
+	if _, err := database.NewQueryBuilder[schema.Todo](h.DB).Create(&todo, r.Context()); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": fmt.Sprintf("failed to save: %v", err)})

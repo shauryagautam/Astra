@@ -10,6 +10,7 @@ import (
 
 // HTTPProvider manages the lifecycle of the HTTP server.
 type HTTPProvider struct {
+	engine.BaseProvider
 	Handler http.Handler
 }
 

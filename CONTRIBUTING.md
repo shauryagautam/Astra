@@ -33,7 +33,7 @@ All contributors are expected to uphold our Code of Conduct (standard Contributo
 
 ### 1. Prerequisites
 
-- **Go**: 1.22 or higher.
+- **Go**: 1.26 or higher.
 - **Docker**: For running infrastructure tests (Postgres, Redis).
 - **Make**: For running automation scripts.
 

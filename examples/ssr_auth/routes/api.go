@@ -1,17 +1,18 @@
 package routes
 
 import (
+	"github.com/shauryagautam/Astra/pkg/engine"
 	"github.com/shauryagautam/Astra/pkg/engine/http"
 	"ssr_auth/handler"
 )
 
-func Register(r *http.Router) {
+func Register(r *http.Router, app *engine.App) {
 	// Let's redirect / to /dashboard
 	r.Get("/", func(c *http.Context) error {
 		return c.Redirect("/dashboard", 302)
 	})
 
-	authCtrl := handler.NewAuthController(r.App)
+	authCtrl := handler.NewAuthController(app)
 
 	r.Get("/login", authCtrl.ShowLogin)
 	r.Post("/login", authCtrl.Login)
