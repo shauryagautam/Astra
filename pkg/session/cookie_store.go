@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"golang.org/x/crypto/hkdf"
 )
 
 // CookieStore is a stateless session store that encrypts session data into
@@ -84,7 +86,7 @@ func (s *CookieStore) Load(r *http.Request) (*Session, error) {
 }
 
 // Save encodes and encrypts the session data into the response cookie.
-func (s *CookieStore) Save(w http.ResponseWriter, sess *Session) error {
+func (s *CookieStore) Save(w http.ResponseWriter, r *http.Request, sess *Session) error {
 	encoded, err := s.encode(sess.data)
 	if err != nil {
 		return fmt.Errorf("session: CookieStore.Save: %w", err)
@@ -94,17 +96,17 @@ func (s *CookieStore) Save(w http.ResponseWriter, sess *Session) error {
 }
 
 // Destroy clears the session cookie.
-func (s *CookieStore) Destroy(w http.ResponseWriter, sess *Session) error {
+func (s *CookieStore) Destroy(w http.ResponseWriter, r *http.Request, sess *Session) error {
 	clearCookie(w, sess.name, sess.opts.Path)
 	return nil
 }
 
 // Regenerate issues a new session ID (for compatibility) and re-encrypts session data.
-func (s *CookieStore) Regenerate(w http.ResponseWriter, sess *Session) error {
+func (s *CookieStore) Regenerate(w http.ResponseWriter, r *http.Request, sess *Session) error {
 	// For CookieStore, ID is just a formal attribute, but we rotate it anyway.
 	sess.id = newSessionID()
 	sess.dirty = true
-	return s.Save(w, sess)
+	return s.Save(w, r, sess)
 }
 
 // ─── Encode / Decode ──────────────────────────────────────────────────────────
@@ -196,20 +198,12 @@ func computeHMAC(key, data []byte) []byte {
 
 // deriveKey derives a keyLen-byte key from secret using HKDF-SHA256 with info label.
 func deriveKey(secret []byte, info string, keyLen int) []byte {
-	h := hmac.New(sha256.New, secret)
-	h.Write([]byte(info))
-	sum := h.Sum(nil)
-	// Expand to keyLen via repeated hashing if needed.
-	result := make([]byte, 0, keyLen)
-	counter := byte(1)
-	for len(result) < keyLen {
-		h.Reset()
-		h.Write(sum)
-		h.Write([]byte{counter})
-		result = append(result, h.Sum(nil)...)
-		counter++
+	kdf := hkdf.New(sha256.New, secret, nil, []byte(info))
+	key := make([]byte, keyLen)
+	if _, err := io.ReadFull(kdf, key); err != nil {
+		panic("session: failed to derive key: " + err.Error())
 	}
-	return result[:keyLen]
+	return key
 }
 
 // ensure strings is used

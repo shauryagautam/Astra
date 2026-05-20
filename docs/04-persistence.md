@@ -35,6 +35,11 @@ Astra supports:
 
 Use `.With("RelationshipName")` on the query builder to eager load these fields.
 
+### Eager Loading Context & Prepared Statements
+
+- **Context Propagation**: Eager loading relations automatically propagates the caller's request `context.Context` down to the relation query loader. This guarantees that nested queries respect timeouts, request cancellation, and flow telemetry details down to the SQL database driver.
+- **Deterministic SQL Generation**: Key order in ORM generated `UPDATE` SQL is sorted alphabetically. This ensures stable query generation and prepared statement caching under high concurrency, preventing DB query planner overhead.
+
 ---
 
 ## ORM Lifecycle Hooks

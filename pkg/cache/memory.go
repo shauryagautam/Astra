@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -15,14 +16,46 @@ type memoryItem struct {
 
 // MemoryStore implements Store with process-local memory.
 type MemoryStore struct {
-	mu    sync.RWMutex
-	items map[string]memoryItem
+	mu     sync.RWMutex
+	items  map[string]memoryItem
+	stopCh chan struct{}
 }
 
 // NewMemoryStore creates a new in-memory cache store.
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{
-		items: make(map[string]memoryItem),
+	stopCh := make(chan struct{})
+	store := &MemoryStore{
+		items:  make(map[string]memoryItem),
+		stopCh: stopCh,
+	}
+	go store.startEvictionLoop(1 * time.Minute)
+	runtime.SetFinalizer(store, func(s *MemoryStore) {
+		close(s.stopCh)
+	})
+	return store
+}
+
+func (m *MemoryStore) startEvictionLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			m.evictExpired()
+		case <-m.stopCh:
+			return
+		}
+	}
+}
+
+func (m *MemoryStore) evictExpired() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now()
+	for k, item := range m.items {
+		if !item.expiresAt.IsZero() && now.After(item.expiresAt) {
+			delete(m.items, k)
+		}
 	}
 }
 

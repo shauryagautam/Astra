@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/shauryagautam/Astra/pkg/database"
 )
 
 // MigrationRecord represents a migration that has been applied to the database.
@@ -22,66 +24,131 @@ type MigrationRecord struct {
 	Checksum string
 }
 
-// Runner handles running and rolling back migration.
+// Runner handles running and rolling back migrations.
 type Runner struct {
-	db  *sql.DB
-	dir string
-	fs  fs.FS
+	db      *sql.DB
+	dialect database.Dialect
+	dir     string
+	fs      fs.FS
 }
 
 // NewRunner creates a new migration runner.
-func NewRunner(db *sql.DB, dir string, fileSystem fs.FS) *Runner {
+func NewRunner(db *sql.DB, dialect database.Dialect, dir string, fileSystem fs.FS) *Runner {
 	if fileSystem == nil {
 		fileSystem = osFS{dir: dir}
 	}
-	return &Runner{db: db, dir: dir, fs: fileSystem}
+	return &Runner{
+		db:      db,
+		dialect: dialect,
+		dir:     dir,
+		fs:      fileSystem,
+	}
 }
 
 // Setup ensures the migrations table exists with all required columns.
 func (r *Runner) Setup(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS schema_migrations (
-			id         SERIAL PRIMARY KEY,
-			version    VARCHAR(255) NOT NULL UNIQUE,
-			batch      INT NOT NULL DEFAULT 1,
-			run_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-			checksum   VARCHAR(64) NOT NULL DEFAULT ''
-		)
-	`
+	var query string
+	switch r.dialect.Name() {
+	case "postgres", "neon":
+		query = `
+			CREATE TABLE IF NOT EXISTS schema_migrations (
+				id         SERIAL PRIMARY KEY,
+				version    VARCHAR(255) NOT NULL UNIQUE,
+				batch      INT NOT NULL DEFAULT 1,
+				run_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+				checksum   VARCHAR(64) NOT NULL DEFAULT ''
+			)
+		`
+	case "mysql":
+		query = `
+			CREATE TABLE IF NOT EXISTS schema_migrations (
+				id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+				version    VARCHAR(255) NOT NULL UNIQUE,
+				batch      INT NOT NULL DEFAULT 1,
+				run_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				checksum   VARCHAR(64) NOT NULL DEFAULT ''
+			)
+		`
+	default: // sqlite / default
+		query = `
+			CREATE TABLE IF NOT EXISTS schema_migrations (
+				id         INTEGER PRIMARY KEY AUTOINCREMENT,
+				version    VARCHAR(255) NOT NULL UNIQUE,
+				batch      INT NOT NULL DEFAULT 1,
+				run_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+				checksum   VARCHAR(64) NOT NULL DEFAULT ''
+			)
+		`
+	}
+
 	_, err := r.db.ExecContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to setup migrations table: %w", err)
 	}
+
 	// Add columns to existing tables that may be missing them (idempotent upgrades)
+	runAtDef := "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+	if r.dialect.Name() == "mysql" {
+		runAtDef = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+	} else if r.dialect.Name() == "sqlite" {
+		runAtDef = "DATETIME DEFAULT CURRENT_TIMESTAMP"
+	}
+
 	for _, col := range []struct{ name, def string }{
 		{"batch", "INT NOT NULL DEFAULT 1"},
 		{"checksum", "VARCHAR(64) NOT NULL DEFAULT ''"},
-		{"run_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"},
+		{"run_at", runAtDef},
 	} {
-		_, _ = r.db.ExecContext(ctx, fmt.Sprintf(
-			"ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS %s %s", col.name, col.def,
-		))
+		var alterQuery string
+		if r.dialect.Name() == "mysql" {
+			// MySQL does not support ADD COLUMN IF NOT EXISTS.
+			// We just attempt the ADD COLUMN; we'll ignore the error if it already exists.
+			alterQuery = fmt.Sprintf("ALTER TABLE schema_migrations ADD COLUMN %s %s", col.name, col.def)
+		} else {
+			alterQuery = fmt.Sprintf("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS %s %s", col.name, col.def)
+		}
+		_, _ = r.db.ExecContext(ctx, alterQuery)
 	}
 	return nil
 }
 
-// acquireLock acquires a Postgres advisory lock to prevent concurrent migration.
+// acquireLock acquires a database-specific advisory lock to prevent concurrent migrations.
 // Returns a release function that must be deferred.
 func (r *Runner) acquireLock(ctx context.Context) (func(), error) {
 	const lockID = 999_888_777 // arbitrary consistent lock ID for migrations
-	var got bool
-	if err := r.db.QueryRowContext(ctx, "SELECT pg_try_advisory_lock($1)", lockID).Scan(&got); err != nil {
-		return nil, fmt.Errorf("failed to acquire migration lock: %w", err)
-	}
-	if !got {
-		return nil, fmt.Errorf("another migration is already running (advisory lock held)")
-	}
-	release := func() {
-		if _, err := r.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", lockID); err != nil {
-			// Ignore unlock error
+
+	switch r.dialect.Name() {
+	case "postgres", "neon":
+		var got bool
+		if err := r.db.QueryRowContext(ctx, "SELECT pg_try_advisory_lock($1)", lockID).Scan(&got); err != nil {
+			return nil, fmt.Errorf("failed to acquire migration lock: %w", err)
 		}
+		if !got {
+			return nil, fmt.Errorf("another migration is already running (advisory lock held)")
+		}
+		release := func() {
+			_, _ = r.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", lockID)
+		}
+		return release, nil
+
+	case "mysql":
+		var got sql.NullInt64
+		lockName := fmt.Sprintf("astra_migration_%d", lockID)
+		if err := r.db.QueryRowContext(ctx, "SELECT GET_LOCK(?, 10)", lockName).Scan(&got); err != nil {
+			return nil, fmt.Errorf("failed to acquire migration lock: %w", err)
+		}
+		if !got.Valid || got.Int64 != 1 {
+			return nil, fmt.Errorf("another migration is already running (GET_LOCK timed out or failed)")
+		}
+		release := func() {
+			_, _ = r.db.ExecContext(ctx, "SELECT RELEASE_LOCK(?)", lockName)
+		}
+		return release, nil
+
+	default:
+		// sqlite or other dialects: skip advisory locking
+		return func() {}, nil
 	}
-	return release, nil
 }
 
 // Run executes all pending migrations in order.
@@ -158,10 +225,13 @@ func (r *Runner) Run(ctx context.Context) error {
 			return fmt.Errorf("failed to apply migration %s: %w", file, err)
 		}
 
-		if _, err := tx.ExecContext(ctx,
-			"INSERT INTO schema_migrations (version, batch, checksum) VALUES ($1, $2, $3)",
-			version, nextBatch, checksum,
-		); err != nil {
+		insertQuery := fmt.Sprintf(
+			"INSERT INTO schema_migrations (version, batch, checksum) VALUES (%s, %s, %s)",
+			r.dialect.Placeholder(1),
+			r.dialect.Placeholder(2),
+			r.dialect.Placeholder(3),
+		)
+		if _, err := tx.ExecContext(ctx, insertQuery, version, nextBatch, checksum); err != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
 				// Ignore rollback error
 			}
@@ -210,12 +280,12 @@ func (r *Runner) Status(ctx context.Context) (applied []MigrationRecord, pending
 	return
 }
 
-// Rollback rolls back the last batch of migration.
+// Rollback rolls back the last batch of migrations.
 func (r *Runner) Rollback(ctx context.Context) error {
 	return r.RollbackN(ctx, 1)
 }
 
-// RollbackN rolls back the last N individual migration.
+// RollbackN rolls back the last N individual migrations.
 func (r *Runner) RollbackN(ctx context.Context, n int) error {
 	if err := r.Setup(ctx); err != nil {
 		return err
@@ -227,8 +297,11 @@ func (r *Runner) RollbackN(ctx context.Context, n int) error {
 	}
 	defer release()
 
-	rows, err := r.db.QueryContext(ctx,
-		"SELECT version FROM schema_migrations ORDER BY id DESC LIMIT $1", n)
+	selectQuery := fmt.Sprintf(
+		"SELECT version FROM schema_migrations ORDER BY id DESC LIMIT %s",
+		r.dialect.Placeholder(1),
+	)
+	rows, err := r.db.QueryContext(ctx, selectQuery, n)
 	if err != nil {
 		return err
 	}
@@ -271,7 +344,11 @@ func (r *Runner) RollbackN(ctx context.Context, n int) error {
 			}
 		}
 
-		if _, err := tx.ExecContext(ctx, "DELETE FROM schema_migrations WHERE version = $1", version); err != nil {
+		deleteQuery := fmt.Sprintf(
+			"DELETE FROM schema_migrations WHERE version = %s",
+			r.dialect.Placeholder(1),
+		)
+		if _, err := tx.ExecContext(ctx, deleteQuery, version); err != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
 				// Ignore rollback error
 			}
@@ -286,7 +363,7 @@ func (r *Runner) RollbackN(ctx context.Context, n int) error {
 	return nil
 }
 
-// Fresh drops all user tables and re-runs all migration.
+// Fresh drops all user tables and re-runs all migrations.
 // CAUTION: destructive operation — for development use only.
 func (r *Runner) Fresh(ctx context.Context) error {
 	if err := r.Setup(ctx); err != nil {
@@ -299,12 +376,19 @@ func (r *Runner) Fresh(ctx context.Context) error {
 	}
 	defer release()
 
-	// Drop all tables except system tables
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT tablename FROM pg_tables
-		WHERE schemaname = 'public'
-		ORDER BY tablename
-	`)
+	var query string
+	switch r.dialect.Name() {
+	case "postgres", "neon":
+		query = `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`
+	case "mysql":
+		query = `SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_name`
+	case "sqlite":
+		query = `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+	default:
+		return fmt.Errorf("unsupported dialect for Fresh operation: %s", r.dialect.Name())
+	}
+
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to list tables: %w", err)
 	}

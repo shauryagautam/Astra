@@ -70,13 +70,17 @@ func (le *LeaderElector) Elect(ctx context.Context, ttl time.Duration, leaderFun
 				// Run the leader function
 				leaderFunc(leaderCtx)
 				cancel()
-			} else {
-				// Check if we are already the leader (e.g., after a reconnect)
-				val, err := le.client.UniversalClient.Get(ctx, le.name).Result()
-				if err == nil && val == le.id {
-					// We are still the leader, just continue (auto-renewal logic will handle it)
-					continue
-				}
+
+				// Clean up leadership key in Redis upon exit
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Second)
+				_, _ = le.client.UniversalClient.Eval(cleanupCtx, `
+					if redis.call("get", KEYS[1]) == ARGV[1] then
+						return redis.call("del", KEYS[1])
+					else
+						return 0
+					end
+				`, []string{le.name}, le.id).Result()
+				cleanupCancel()
 			}
 		}
 	}

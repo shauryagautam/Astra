@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/shauryagautam/Astra/pkg/engine/config"
@@ -49,7 +50,7 @@ func WithRefreshTokenExpiry(d time.Duration) JWTOption {
 //	mgr, err := auth.NewJWTStandalone("super-secret-key-min-32-chars!!!!", auth.WithIssuer("myapp"))
 func NewJWTStandalone(secret string, opts ...JWTOption) (*JWTManager, error) {
 	if len(secret) < 32 {
-		return nil, &StandaloneError{"NewJWTStandalone: secret must be at least 32 characters (got " + string(rune(len(secret)+48)) + ")"}
+		return nil, &StandaloneError{"NewJWTStandalone: secret must be at least 32 characters (got " + strconv.Itoa(len(secret)) + ")"}
 	}
 
 	cfg := config.AuthConfig{

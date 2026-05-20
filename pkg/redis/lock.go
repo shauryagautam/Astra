@@ -40,6 +40,13 @@ func (l *Lock) Acquire(ctx context.Context) (bool, error) {
 
 // Release releases the lock if it's held by this instance.
 func (l *Lock) Release(ctx context.Context) (bool, error) {
+	releaseCtx := ctx
+	if ctx.Err() != nil {
+		var cancel context.CancelFunc
+		releaseCtx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+	}
+
 	script := `
 		if redis.call("get", KEYS[1]) == ARGV[1] then
 			return redis.call("del", KEYS[1])
@@ -47,7 +54,7 @@ func (l *Lock) Release(ctx context.Context) (bool, error) {
 			return 0
 		end
 	`
-	res, err := l.client.Eval(ctx, script, []string{l.name}, l.token).Result()
+	res, err := l.client.Eval(releaseCtx, script, []string{l.name}, l.token).Result()
 	if err != nil {
 		return false, fmt.Errorf("%w: %v", ErrLockReleaseFailed, err)
 	}

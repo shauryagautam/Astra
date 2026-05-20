@@ -18,6 +18,7 @@ type ResendMailer struct {
 	config config.MailConfig
 	events *event.Emitter
 	cb     *fault_tolerance.CircuitBreaker
+	client *nethttp.Client
 }
 
 // NewResendMailer creates a new ResendMailer.
@@ -26,6 +27,9 @@ func NewResendMailer(cfg config.MailConfig, emitter *event.Emitter) *ResendMaile
 		config: cfg,
 		events: emitter,
 		cb:     fault_tolerance.NewCircuitBreaker("mail:resend"),
+		client: &nethttp.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -83,10 +87,7 @@ func (m *ResendMailer) Send(ctx context.Context, msg *Message) error {
 		req.Header.Set("Authorization", "Bearer "+m.config.ResendAPIKey)
 		req.Header.Set("Content-Type", "application/json")
 
-		client := &nethttp.Client{
-			Timeout: 30 * time.Second,
-		}
-		res, err := client.Do(req)
+		res, err := m.client.Do(req)
 		if err != nil {
 			return fmt.Errorf("mail: failed to send request: %w", err)
 		}

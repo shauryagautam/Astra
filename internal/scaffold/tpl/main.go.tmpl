@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"log"
 
-	"github.com/shauryagautam/Astra/pkg/engine"
 	"github.com/shauryagautam/Astra/pkg/engine/http"
-	"github.com/shauryagautam/Astra/pkg/database"
+	"github.com/shauryagautam/Astra/pkg/engine/providers"
 	"{{.AppName}}/internal/routes"
 )
 
@@ -17,14 +15,18 @@ func main() {
 	}
 	defer cleanup()
 
-	// Initialize Routes
-	if r, ok := app.Router().(*http.Router); ok {
-		routes.Register(r)
-	}
+	// Initialize HTTP Router
+	r := http.NewRouter(app.Config(), app.Logger())
 
-	// Start the Application
+	// Initialize Routes
+	routes.Register(r)
+
+	// Register Core Providers (Database, HTTP Server)
+	app.RegisterProvider(&providers.DatabaseProvider{})
+	app.RegisterProvider(providers.NewHTTPProvider(r))
+
+	// Start the Application Kernel
 	if err := app.Start(); err != nil {
 		log.Fatalf("App failed: %v", err)
 	}
 }
-

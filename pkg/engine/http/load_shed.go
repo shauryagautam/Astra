@@ -146,7 +146,7 @@ func AdaptiveLoadShedding(cfg LoadShedConfig) MiddlewareFunc {
 
 			// Accumulate window stats
 			state.windowTotal.Add(latency)
-			count := state.windowCount.Add(1)
+			state.windowCount.Add(1)
 
 			// Window limit recalculation
 			now := time.Now().UnixNano()
@@ -155,8 +155,8 @@ func AdaptiveLoadShedding(cfg LoadShedConfig) MiddlewareFunc {
 
 			if now-lastReset >= windowNs && state.lastReset.CompareAndSwap(lastReset, now) {
 				// Update EMA Baseline
-				avgLatency := state.windowTotal.Swap(0) / max64(count, 1)
-				state.windowCount.Store(0)
+				actualCount := state.windowCount.Swap(0)
+				avgLatency := state.windowTotal.Swap(0) / max64(actualCount, 1)
 
 				if baseline == 0 {
 					baselineNs.Store(avgLatency)

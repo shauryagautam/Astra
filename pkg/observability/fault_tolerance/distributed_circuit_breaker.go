@@ -3,7 +3,6 @@ package fault_tolerance
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -101,7 +100,8 @@ return 1
 func (cb *DistributedCircuitBreaker) Execute(ctx context.Context, fn func() error) error {
 	allowed, err := allowRequestScript.Run(ctx, cb.client, []string{cb.key}, cb.resetTimeout.Milliseconds(), time.Now().UnixMilli()).Int()
 	if err != nil && !errors.Is(err, redis.Nil) {
-		return fmt.Errorf("astra/resilience: redis error: %w", err)
+		// Redis is down: fail open to prevent cascading outage
+		return fn()
 	}
 
 	if allowed == 0 {

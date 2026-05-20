@@ -266,7 +266,7 @@ func (c *Context) SetCookie(cookie *nethttp.Cookie) {
 func (c *Context) RegenerateSession() error {
 	sess := c.Session()
 	if sess != nil {
-		return sess.Regenerate(c.Writer)
+		return sess.Regenerate(c.Writer, c.Request)
 	}
 	return nil
 }

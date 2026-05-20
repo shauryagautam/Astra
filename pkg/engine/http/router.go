@@ -136,3 +136,8 @@ func (r *Router) Group(prefix string, fn func(*Router)) {
 func (r *Router) Use(m MiddlewareFunc) {
 	r.middleware = append(r.middleware, m)
 }
+
+// ProvideRouter provides the Astra Router for Wire dependency injection.
+func ProvideRouter(cfg *config.AstraConfig, logger *slog.Logger) *Router {
+	return NewRouter(cfg, logger)
+}

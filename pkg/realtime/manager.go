@@ -72,8 +72,9 @@ func (m *RoomManager) Run() {
 						select {
 						case client.Send <- message:
 						default:
-							close(client.Send)
-							delete(room.Clients, client.UserID)
+							go func(c *Client) {
+								m.Unregister <- c
+							}(client)
 						}
 					}
 					room.mu.RUnlock()
@@ -85,7 +86,9 @@ func (m *RoomManager) Run() {
 					select {
 					case client.Send <- message:
 					default:
-						// Already closed or full
+						go func(c *Client) {
+							m.Unregister <- c
+						}(client)
 					}
 				}
 				m.mu.RUnlock()

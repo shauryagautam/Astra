@@ -22,12 +22,12 @@ func (w *sessionWrapper) Load(r *http.Request) (any, error) {
 	return w.inner.Load(r)
 }
 
-func (w *sessionWrapper) Save(rw http.ResponseWriter, s any) error {
+func (w *sessionWrapper) Save(rw http.ResponseWriter, r *http.Request, s any) error {
 	sess, ok := s.(*session.Session)
 	if !ok {
 		return fmt.Errorf("invalid session type")
 	}
-	return w.inner.Save(rw, sess)
+	return w.inner.Save(rw, r, sess)
 }
 
 func NewSessionProvider(store session.Store) *SessionProvider {

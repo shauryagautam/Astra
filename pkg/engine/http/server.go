@@ -66,17 +66,21 @@ func (s *Server) Start(ctx context.Context) error {
 
 // startHTTPOnly is the classic single-protocol startup path.
 func (s *Server) startHTTPOnly(_ context.Context) error {
+	tlsConfig := LoadTLSConfig()
+	ln, err := net.Listen("tcp", s.Addr)
+	if err != nil {
+		return fmt.Errorf("astra: failed to listen on %s: %w", s.Addr, err)
+	}
 
 	go func() {
-		tlsConfig := LoadTLSConfig()
-		var err error
+		var serveErr error
 		if tlsConfig.Enabled && tlsConfig.CertFile != "" && tlsConfig.KeyFile != "" {
-			err = s.ListenAndServeTLS(tlsConfig.CertFile, tlsConfig.KeyFile)
+			serveErr = s.ServeTLS(ln, tlsConfig.CertFile, tlsConfig.KeyFile)
 		} else {
-			err = s.ListenAndServe()
+			serveErr = s.Serve(ln)
 		}
-		if err != nil && err != http.ErrServerClosed {
-			slog.Error("HTTP server error", "error", err)
+		if serveErr != nil && serveErr != http.ErrServerClosed {
+			slog.Error("HTTP server error", "error", serveErr)
 		}
 	}()
 	return nil
@@ -130,5 +134,16 @@ func (s *Server) startMuxed(_ context.Context) error {
 	}()
 
 	slog.Info("Astra server started (HTTP + gRPC multiplexed)", "addr", s.Addr)
+	return nil
+}
+
+// Shutdown gracefully shuts down both the HTTP server and the gRPC server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.grpcServer != nil {
+		s.grpcServer.GracefulStop()
+	}
+	if s.Server != nil {
+		return s.Server.Shutdown(ctx)
+	}
 	return nil
 }

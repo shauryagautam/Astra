@@ -45,13 +45,13 @@ type Storage interface {
 // session
 type SessionStore interface {
 	Load(r *http.Request) (any, error)
-	Save(w http.ResponseWriter, s any) error
+	Save(w http.ResponseWriter, r *http.Request, s any) error
 }
 
 type Session interface {
 	Get(key string) any
 	Set(key string, value any)
-	Save(w http.ResponseWriter) error
+	Save(w http.ResponseWriter, r *http.Request) error
 }
 
 // cache

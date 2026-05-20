@@ -24,13 +24,16 @@ The practical outcome is that you can answer two questions quickly:
 1. Where did the request spend time?
 2. Which dependency caused the failure?
 
-## Distributed circuit breakers
+## Distributed & Local Circuit Breakers
 
 Astra includes both local and Redis-backed circuit breakers in `pkg/observability/fault_tolerance`.
 
 Use the local breaker when the protection is process-local. Use the distributed breaker when multiple app instances need to share the same open/half-open state.
 
-That distinction matters in production because the breaker state should be visible to every instance that is calling the same dependency.
+### Concurrency & SPOF Protection
+
+- **Thread-Safe Local Breaker**: Local circuit breaker state modifications, request checks, and execution status updates are locked via local mutexes, preventing concurrent access and metric drop under heavy HTTP traffic.
+- **Fail-Open Graceful Degradation**: The distributed circuit breaker is designed to fail open if the backing Redis instance suffers a temporary outage. Instead of cascading the failure to block all downstream app traffic, Astra logs the Redis error and directly runs the wrapped execution function, ensuring continuous service availability.
 
 ## Rate limiting
 
@@ -40,6 +43,10 @@ Because the limiter is middleware, the response headers are consistent and the r
 
 > [!WARNING]
 > Keep rate limiting close to the edge of the system. If you wait until deep inside the handler chain, you have already spent resources you were trying to protect.
+
+### Adaptive Load Shedding
+
+Astra's adaptive HTTP load shedder dynamically tracks latency and request stats to shed load when the system degrades. To prevent metric loss during high concurrency, boundary statistics are reset atomically using atomic `Swap(0)` operations. This guarantees exact metric calculation and avoids skewing adaptive limits under load.
 
 ## Copy-Paste Example
 

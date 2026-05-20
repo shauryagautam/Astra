@@ -1,7 +1,6 @@
 package session
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -84,7 +83,7 @@ func (s *RedisStore) Load(r *http.Request) (*Session, error) {
 }
 
 // Save serialises the session data to Redis and sets/refreshes the ID cookie.
-func (s *RedisStore) Save(w http.ResponseWriter, sess *Session) error {
+func (s *RedisStore) Save(w http.ResponseWriter, r *http.Request, sess *Session) error {
 	if sess.id == "" {
 		sess.id = newSessionID()
 	}
@@ -95,7 +94,7 @@ func (s *RedisStore) Save(w http.ResponseWriter, sess *Session) error {
 	}
 
 	key := s.redisKey(sess.id)
-	ctx := context.Background()
+	ctx := r.Context()
 	if err := s.client.Set(ctx, key, payload, s.ttl).Err(); err != nil {
 		return fmt.Errorf("session: RedisStore.Save redis: %w", err)
 	}
@@ -105,22 +104,22 @@ func (s *RedisStore) Save(w http.ResponseWriter, sess *Session) error {
 }
 
 // Destroy deletes the session from Redis and clears the cookie.
-func (s *RedisStore) Destroy(w http.ResponseWriter, sess *Session) error {
+func (s *RedisStore) Destroy(w http.ResponseWriter, r *http.Request, sess *Session) error {
 	if sess.id != "" {
-		_ = s.client.Del(context.Background(), s.redisKey(sess.id))
+		_ = s.client.Del(r.Context(), s.redisKey(sess.id))
 	}
 	clearCookie(w, sess.name, sess.opts.Path)
 	return nil
 }
 
 // Regenerate issues a new session ID, migrates data in Redis, and updates the cookie.
-func (s *RedisStore) Regenerate(w http.ResponseWriter, sess *Session) error {
+func (s *RedisStore) Regenerate(w http.ResponseWriter, r *http.Request, sess *Session) error {
 	oldID := sess.id
 	newID := newSessionID()
 
 	// If we have an old ID, delete it from Redis
 	if oldID != "" {
-		ctx := context.Background()
+		ctx := r.Context()
 		_ = s.client.Del(ctx, s.redisKey(oldID))
 	}
 
@@ -129,7 +128,7 @@ func (s *RedisStore) Regenerate(w http.ResponseWriter, sess *Session) error {
 	sess.dirty = true
 
 	// Force an immediate save to Redis and cookie update
-	return s.Save(w, sess)
+	return s.Save(w, r, sess)
 }
 
 func (s *RedisStore) redisKey(id string) string {

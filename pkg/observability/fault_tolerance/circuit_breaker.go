@@ -150,6 +150,9 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func() error) error {
 }
 
 func (cb *CircuitBreaker) allowRequest(ctx context.Context) bool {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+
 	state, _, openedAt, err := cb.store.Get(ctx, cb.name)
 	if err != nil {
 		return true // Fail open on store errors
@@ -167,6 +170,9 @@ func (cb *CircuitBreaker) allowRequest(ctx context.Context) bool {
 }
 
 func (cb *CircuitBreaker) trackResult(ctx context.Context, err error) {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+
 	state, failCount, _, storeErr := cb.store.Get(ctx, cb.name)
 	if storeErr != nil {
 		return

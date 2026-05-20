@@ -5,11 +5,16 @@ import (
 )
 
 func Register(r *http.Router) {
-	// Apply secure headers by default
-	r.Use(http.SecureHeaders({{.SecurityConfig}}))
+	// Apply secure headers by default based on the application environment
+	isProd := r.Config != nil && r.Config.App.Environment == "production"
+	r.Use(http.SecureHeaders(isProd))
 
-	r.Get("/health", http.HealthHandler())
-	r.Get("/ready", http.ReadyHandler())
+	r.Get("/health", func(c *http.Context) error {
+		return c.JSON(map[string]string{"status": "UP"}, 200)
+	})
+	r.Get("/ready", func(c *http.Context) error {
+		return c.JSON(map[string]string{"status": "READY"}, 200)
+	})
 
 	// Add your routes here
 	// r.Get("/", "HomeController@Index")

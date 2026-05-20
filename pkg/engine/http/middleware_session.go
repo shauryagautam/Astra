@@ -31,6 +31,7 @@ func SessionMiddleware(store session.Store) MiddlewareFunc {
 			sw := &savingResponseWriter{
 				ResponseWriter: w,
 				sess:           sess,
+				req:            r,
 				saved:          false,
 			}
 
@@ -49,6 +50,7 @@ func SessionMiddleware(store session.Store) MiddlewareFunc {
 type savingResponseWriter struct {
 	stdhttp.ResponseWriter
 	sess  *session.Session
+	req   *stdhttp.Request
 	saved bool
 }
 
@@ -67,8 +69,8 @@ func (sw *savingResponseWriter) saveOnce(w stdhttp.ResponseWriter) {
 		return
 	}
 	sw.saved = true
-	if sw.sess != nil {
-		_ = sw.sess.Save(w)
+	if sw.sess != nil && sw.req != nil {
+		_ = sw.sess.Save(w, sw.req)
 	}
 }
 

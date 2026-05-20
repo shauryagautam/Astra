@@ -111,11 +111,11 @@ func (s *Session) ID() string { return s.id }
 // Save persists the session to the response. Must be called before the
 // response body is written. For server-side stores this writes the ID cookie.
 // For CookieStore this writes the encrypted data cookie.
-func (s *Session) Save(w http.ResponseWriter) error {
+func (s *Session) Save(w http.ResponseWriter, r *http.Request) error {
 	if !s.dirty {
 		return nil
 	}
-	return s.store.Save(w, s)
+	return s.store.Save(w, r, s)
 }
 
 // ─── Store Interface ──────────────────────────────────────────────────────────
@@ -125,17 +125,17 @@ type Store interface {
 	// Load reads a session from the request. Returns an empty session if none found.
 	Load(r *http.Request) (*Session, error)
 	// Save writes the session to the response (sets cookies, updates Redis, etc.)
-	Save(w http.ResponseWriter, s *Session) error
+	Save(w http.ResponseWriter, r *http.Request, s *Session) error
 	// Destroy invalidates the session and clears the cookie.
-	Destroy(w http.ResponseWriter, s *Session) error
+	Destroy(w http.ResponseWriter, r *http.Request, s *Session) error
 	// Regenerate issues a new session ID while preserving data.
-	Regenerate(w http.ResponseWriter, s *Session) error
+	Regenerate(w http.ResponseWriter, r *http.Request, s *Session) error
 }
 
 // Regenerate issues a new session ID for the current session while preserving
 // its data. This should be called after login or privilege escalation.
-func (s *Session) Regenerate(w http.ResponseWriter) error {
-	return s.store.Regenerate(w, s)
+func (s *Session) Regenerate(w http.ResponseWriter, r *http.Request) error {
+	return s.store.Regenerate(w, r, s)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

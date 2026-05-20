@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"iter"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 )
@@ -804,8 +805,14 @@ func (q *QueryBuilder[T]) toUpdateSQL(data map[string]any) (string, []any) {
 	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
 	sb.WriteString(" SET ")
 
-	i := 0
-	for col, val := range data {
+	keys := make([]string, 0, len(data))
+	for col := range data {
+		keys = append(keys, col)
+	}
+	sort.Strings(keys)
+
+	for i, col := range keys {
+		val := data[col]
 		if i > 0 {
 			sb.WriteString(", ")
 		}
@@ -813,7 +820,6 @@ func (q *QueryBuilder[T]) toUpdateSQL(data map[string]any) (string, []any) {
 		sb.WriteString(" = ")
 		sb.WriteString(q.db.dialect.Placeholder(i + 1))
 		args = append(args, val)
-		i++
 	}
 
 	// Pass len(args) as offset so WHERE placeholders continue correctly.
@@ -850,17 +856,17 @@ func (q *QueryBuilder[T]) loadRelation(results []T, name string) error {
 
 	switch rel.Type {
 	case "has_many":
-		return loadHasMany(q.db, results, *rel)
+		return loadHasMany(q.ctx, q.db, results, *rel)
 	case "has_one":
-		return loadHasOne(q.db, results, *rel)
+		return loadHasOne(q.ctx, q.db, results, *rel)
 	case "belongs_to":
-		return loadBelongsTo(q.db, results, *rel)
+		return loadBelongsTo(q.ctx, q.db, results, *rel)
 	case "many_to_many":
-		return loadManyToMany(q.db, results, *rel)
+		return loadManyToMany(q.ctx, q.db, results, *rel)
 	case "morph_to":
-		return loadMorphTo(q.db, results, *rel)
+		return loadMorphTo(q.ctx, q.db, results, *rel)
 	case "morph_many":
-		return loadMorphMany(q.db, results, *rel)
+		return loadMorphMany(q.ctx, q.db, results, *rel)
 	}
 	return nil
 }

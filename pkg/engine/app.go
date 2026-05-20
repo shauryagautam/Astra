@@ -80,6 +80,29 @@ func (a *App) OnStop(fn func(context.Context) error) {
 	a.onStop = append(a.onStop, fn)
 }
 
+// RouterProvider is a sub-interface implemented by providers that expose the router.
+type RouterProvider interface {
+	GetRouter() any
+}
+
+// Router returns the HTTP router if one of the providers implements RouterProvider.
+func (a *App) Router() any {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	for _, p := range a.providers {
+		if rp, ok := p.(RouterProvider); ok {
+			return rp.GetRouter()
+		}
+	}
+	return nil
+}
+
+// Start boots the application and blocks until a termination signal is received.
+// It is an alias for Run() to support scaffolding templates.
+func (a *App) Start() error {
+	return a.Run()
+}
+
 // Run boots the application and blocks until a termination signal is received.
 // It handles the full lifecycle from Boot to Graceful Shutdown.
 func (a *App) Run() error {

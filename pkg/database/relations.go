@@ -8,7 +8,7 @@ import (
 )
 
 // loadHasMany eager-loads HasMany relations, grouping related rows by owner PK.
-func loadHasMany[T any](db *DB, owners []T, rel RelationMeta) error {
+func loadHasMany[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta) error {
 	if len(owners) == 0 {
 		return nil
 	}
@@ -23,7 +23,7 @@ func loadHasMany[T any](db *DB, owners []T, rel RelationMeta) error {
 	relatedMeta := GetMeta(rel.Related)
 
 	query, args := buildWhereInQuery(db, relatedMeta.TableName, fk, ownerIDs)
-	rows, err := db.conn.Query(context.Background(), query, args...)
+	rows, err := db.conn.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func loadHasMany[T any](db *DB, owners []T, rel RelationMeta) error {
 }
 
 // loadHasOne eager-loads HasOne relations, mapping related rows by FK.
-func loadHasOne[T any](db *DB, owners []T, rel RelationMeta) error {
+func loadHasOne[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta) error {
 	if len(owners) == 0 {
 		return nil
 	}
@@ -86,7 +86,7 @@ func loadHasOne[T any](db *DB, owners []T, rel RelationMeta) error {
 	relatedMeta := GetMeta(rel.Related)
 
 	query, args := buildWhereInQuery(db, relatedMeta.TableName, fk, ownerIDs)
-	rows, err := db.conn.Query(context.Background(), query, args...)
+	rows, err := db.conn.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func loadHasOne[T any](db *DB, owners []T, rel RelationMeta) error {
 
 // loadBelongsTo eager-loads BelongsTo relations.
 // The FK lives on the owner; the related PK is looked up.
-func loadBelongsTo[T any](db *DB, owners []T, rel RelationMeta) error {
+func loadBelongsTo[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta) error {
 	if len(owners) == 0 {
 		return nil
 	}
@@ -167,7 +167,7 @@ func loadBelongsTo[T any](db *DB, owners []T, rel RelationMeta) error {
 	}
 
 	query, args := buildWhereInQuery(db, relatedMeta.TableName, relatedMeta.PK.ColumnName, relatedIDs)
-	rows, err := db.conn.Query(context.Background(), query, args...)
+	rows, err := db.conn.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func loadBelongsTo[T any](db *DB, owners []T, rel RelationMeta) error {
 // loadManyToMany eager-loads ManyToMany relations via a pivot table.
 // Convention: pivot FK column names are snake_case(OwnerType)+"_id"
 // and snake_case(RelatedType)+"_id", both overridable via orm tags.
-func loadManyToMany[T any](db *DB, owners []T, rel RelationMeta) error {
+func loadManyToMany[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta) error {
 	if len(owners) == 0 {
 		return nil
 	}
@@ -265,7 +265,7 @@ func loadManyToMany[T any](db *DB, owners []T, rel RelationMeta) error {
 		strings.Join(placeholders, ", "),
 	)
 
-	rows, err := db.conn.Query(context.Background(), query, ownerIDs...)
+	rows, err := db.conn.Query(ctx, query, ownerIDs...)
 	if err != nil {
 		return err
 	}
@@ -431,7 +431,7 @@ func buildWhereInQuery(db *DB, table, column string, ids []any) (string, []any) 
 }
 
 // loadMorphMany eager-loads MorphMany relations.
-func loadMorphMany[T any](db *DB, owners []T, rel RelationMeta) error {
+func loadMorphMany[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta) error {
 	if len(owners) == 0 {
 		return nil
 	}
@@ -467,7 +467,7 @@ func loadMorphMany[T any](db *DB, owners []T, rel RelationMeta) error {
 		strings.Join(phs, ", "),
 	)
 
-	rows, err := db.conn.Query(context.Background(), query, args...)
+	rows, err := db.conn.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ func loadMorphMany[T any](db *DB, owners []T, rel RelationMeta) error {
 }
 
 // loadMorphTo eager-loads MorphTo relations.
-func loadMorphTo[T any](db *DB, owners []T, rel RelationMeta) error {
+func loadMorphTo[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta) error {
 	if len(owners) == 0 {
 		return nil
 	}
@@ -549,7 +549,7 @@ func loadMorphTo[T any](db *DB, owners []T, rel RelationMeta) error {
 		table := toSnakeCase(t) + "s"
 
 		query, args := buildWhereInQuery(db, table, "id", ids)
-		rows, err := db.conn.Query(context.Background(), query, args...)
+		rows, err := db.conn.Query(ctx, query, args...)
 		if err != nil {
 			continue
 		}

@@ -18,13 +18,13 @@ import (
 // JWTManager handles issuing and verifying JWT tokens.
 type JWTManager struct {
 	config      config.AuthConfig
-	redisClient *redis.Client
+	redisClient redis.UniversalClient
 	keys        map[string][]byte
 	activeKeyID string
 }
 
 // NewJWTManager creates a new JWTManager.
-func NewJWTManager(cfg config.AuthConfig, redisClient *redis.Client) *JWTManager {
+func NewJWTManager(cfg config.AuthConfig, redisClient redis.UniversalClient) *JWTManager {
 	mgr := &JWTManager{
 		config:      cfg,
 		redisClient: redisClient,

@@ -24,6 +24,12 @@ type Guard interface {
 
 Use `JWTGuard` when you want stateless API auth. Use `CookieGuard` when you want browser sessions with secure cookies and server-side session state.
 
+### Concurrency & Cluster Compatibility
+
+- **Redis Cluster Support**: The `JWTManager` depends on `redis.UniversalClient` instead of a concrete standalone client. This allows Astra authentication to operate seamlessly across standalone, sentinel, and Redis Cluster deployments.
+- **Context-Aware Sessions**: The `session.Store` interface propagates the HTTP request object through `Save`, `Destroy`, and `Regenerate` methods. This ensures session storage drivers (such as Redis) respect request-level cancellation signals, timeouts, and carry OpenTelemetry span context down to the datastore.
+- **Cryptographic Key Derivation**: The cookie session store derives separate signing and encryption keys from the main application key using HKDF-SHA256 via the standard library extension `golang.org/x/crypto/hkdf`. This ensures cryptographic strength and avoids custom key-expansion loops.
+
 The package also keeps a registry of guards by name:
 
 ```go

@@ -17,9 +17,15 @@ type DatabaseProvider struct {
 
 // ProvideDB is a static provider for the database.
 func ProvideDB(env *config.Config) (*database.DB, error) {
+	driver := env.String("DB_DRIVER", env.String("DB_CONNECTION", "postgres"))
+	dsn := env.String("DB_DSN", env.String("DATABASE_URL", ""))
 	cfg := database.Config{
-		Driver: env.String("DB_DRIVER", "postgres"),
-		DSN:    env.String("DB_DSN", ""),
+		Driver:     driver,
+		DSN:        dsn,
+		MaxOpen:    env.Int("DB_MAX_OPEN", 25),
+		MaxIdle:    env.Int("DB_MAX_IDLE", 5),
+		Lifetime:   env.Duration("DB_LIFETIME", 0),
+		LogQueries: env.Bool("DB_LOG_QUERIES", false),
 	}
 	return database.Open(cfg)
 }
