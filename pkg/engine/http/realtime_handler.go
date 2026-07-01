@@ -30,6 +30,21 @@ func (h *WebSocketHandler) Connect(c *Context) error {
 	if err != nil {
 		return err
 	}
-	_ = conn // Handle connection
+
+	userID := "anonymous"
+	if claims := c.AuthUser(); claims != nil {
+		userID = claims.UserID
+	} else if queryUserID := c.Query("user_id"); queryUserID != "" {
+		userID = queryUserID
+	}
+
+	client := realtime.NewClient(conn, userID, h.manager)
+	h.manager.Register <- client
+
+	// Start writer pump in background
+	go client.WritePump(c.Request.Context())
+	
+	// Start reader pump in current goroutine to block
+	client.ReadPump(c.Request.Context())
 	return nil
 }

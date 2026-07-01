@@ -79,6 +79,12 @@ func (c *Client) ReadPump(ctx context.Context) {
 			msg.From = c.UserID
 			msg.Timestamp = time.Now()
 
+			if msg.Type == "join" && msg.Room != "" {
+				c.Manager.JoinRoom(msg.Room, c)
+			} else if msg.Type == "leave" && msg.Room != "" {
+				c.Manager.LeaveRoom(msg.Room, c.UserID)
+			}
+
 			if msg.Room != "" {
 				c.Manager.Broadcast <- msg
 			} else if msg.To != "" {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strings"
 
 	"github.com/shauryagautam/Astra/pkg/engine/config"
@@ -13,26 +14,37 @@ import (
 // Router represents the Astra HTTP router.
 // It is fully decoupled from the engine.App kernel and accepts explicit dependencies.
 type Router struct {
-	mux        *http.ServeMux
-	Config     *config.AstraConfig
-	Logger     *slog.Logger
-	middleware []MiddlewareFunc
-	prefix     string
+	mux            *http.ServeMux
+	Config         *config.AstraConfig
+	Logger         *slog.Logger
+	middleware     []MiddlewareFunc
+	prefix         string
+	trustedProxies []netip.Prefix // parsed once at construction from config
 }
 
-// NewRouter creates a new Astra HTTP router.
+// NewRouter creates a new Astra HTTP router. It parses the TRUSTED_PROXIES
+// configuration once at startup so per-request IP resolution is allocation-free.
 func NewRouter(cfg *config.AstraConfig, logger *slog.Logger) *Router {
+	var proxies []netip.Prefix
+	if cfg != nil {
+		proxies = ParseTrustedProxies(cfg.App.TrustedProxies)
+	}
 	return &Router{
-		mux:        http.NewServeMux(),
-		Config:     cfg,
-		Logger:     logger,
-		middleware: make([]MiddlewareFunc, 0),
+		mux:            http.NewServeMux(),
+		Config:         cfg,
+		Logger:         logger,
+		middleware:     make([]MiddlewareFunc, 0),
+		trustedProxies: proxies,
 	}
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := NewContext(w, req)
 	defer c.release()
+
+	// Inject parsed trusted proxies so ClientIP() resolves the real client
+	// address correctly when the server sits behind a reverse proxy.
+	c.TrustedProxies = r.trustedProxies
 
 	// Inject into request context
 	ctx := context.WithValue(req.Context(), astraContextKey, c)
@@ -93,7 +105,9 @@ func (r *Router) HandleContext(method, path string, h HandlerFunc) {
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		c := FromRequest(req)
 		if c == nil {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `{"error":{"code":"INTERNAL_ERROR","message":"request context unavailable"}}`)
 			return
 		}
 
@@ -106,8 +120,11 @@ func (r *Router) HandleContext(method, path string, h HandlerFunc) {
 			}
 			logger.Error("handler error", "error", err, "path", req.URL.Path)
 			if !c.written {
+				// Return a structured JSON error envelope so API clients never
+				// receive a bare plain-text string on unhandled handler errors.
+				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "INTERNAL_SERVER_ERROR")
+				fmt.Fprintf(w, `{"error":{"code":"INTERNAL_ERROR","message":"an unexpected error occurred"}}`)
 			}
 		}
 	})
@@ -124,11 +141,12 @@ func (r *Router) HandleContext(method, path string, h HandlerFunc) {
 
 func (r *Router) Group(prefix string, fn func(*Router)) {
 	sub := &Router{
-		mux:        r.mux,
-		Config:     r.Config,
-		Logger:     r.Logger,
-		middleware: append([]MiddlewareFunc{}, r.middleware...),
-		prefix:     r.prefix + prefix,
+		mux:            r.mux,
+		Config:         r.Config,
+		Logger:         r.Logger,
+		middleware:     append([]MiddlewareFunc{}, r.middleware...),
+		prefix:         r.prefix + prefix,
+		trustedProxies: r.trustedProxies,
 	}
 	fn(sub)
 }

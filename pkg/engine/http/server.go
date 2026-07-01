@@ -14,28 +14,61 @@ import (
 	"google.golang.org/grpc"
 )
 
-
 // Server wraps the standard http.Server to provide Astra-specific features.
 type Server struct {
 	*http.Server
 	grpcServer *grpc.Server
 }
 
-// NewServer creates a new Astra HTTP server with TLS support.
-func NewServer(addr string, handler http.Handler) *Server {
+// NewServer creates a new Astra HTTP server with sensible production timeouts and
+// optional TLS support.
+//
+// maxBodyBytes limits the size of request bodies at the transport level before
+// any handler is invoked. Pass 0 to disable (not recommended in production).
+// The recommended value for most APIs is 10 MB (10 * 1024 * 1024).
+func NewServer(addr string, handler http.Handler, maxBodyBytes int64) *Server {
 	tlsConfig := LoadTLSConfig()
 	tlsCfg, _ := tlsConfig.GetTLSConfig()
 
+	// Auto-wrap the handler with MaxBodySize so every endpoint is protected
+	// against request body flooding regardless of whether middleware is registered.
+	// This is applied at the transport level, before routing.
+	if maxBodyBytes > 0 {
+		original := handler
+		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+			}
+			original.ServeHTTP(w, r)
+		})
+	}
+
 	return &Server{
 		Server: &http.Server{
-			Addr:              addr,
-			Handler:           h2c.NewHandler(handler, &http2.Server{}),
+			Addr:    addr,
+			Handler: h2c.NewHandler(handler, &http2.Server{}),
+
+			// ReadHeaderTimeout guards against slowloris attacks where an
+			// attacker slowly sends headers to hold the connection open.
 			ReadHeaderTimeout: 5 * time.Second,
-			TLSConfig:         tlsCfg,
+
+			// ReadTimeout is the maximum time to read the entire request
+			// including the body. Set conservatively for upload workloads;
+			// individual handlers can override via context deadline.
+			ReadTimeout: 30 * time.Second,
+
+			// WriteTimeout is the maximum duration before timing out writes of
+			// the response. Includes the time to read the request body.
+			WriteTimeout: 60 * time.Second,
+
+			// IdleTimeout is the maximum amount of time to wait for the next
+			// request on a keep-alive connection.
+			IdleTimeout: 120 * time.Second,
+
+			TLSConfig: tlsCfg,
 		},
 	}
 }
-
 
 // ServeGRPC registers a gRPC server to be multiplexed on the same port as the
 // HTTP server. When a gRPC server is registered, both Astra REST handlers and
@@ -65,13 +98,16 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 // startHTTPOnly is the classic single-protocol startup path.
-func (s *Server) startHTTPOnly(_ context.Context) error {
+// It respects the provided context: when ctx is cancelled the server is gracefully
+// shut down using a 15-second budget, ensuring in-flight requests can complete.
+func (s *Server) startHTTPOnly(ctx context.Context) error {
 	tlsConfig := LoadTLSConfig()
 	ln, err := net.Listen("tcp", s.Addr)
 	if err != nil {
 		return fmt.Errorf("astra: failed to listen on %s: %w", s.Addr, err)
 	}
 
+	// Serve in background goroutine.
 	go func() {
 		var serveErr error
 		if tlsConfig.Enabled && tlsConfig.CertFile != "" && tlsConfig.KeyFile != "" {
@@ -83,14 +119,25 @@ func (s *Server) startHTTPOnly(_ context.Context) error {
 			slog.Error("HTTP server error", "error", serveErr)
 		}
 	}()
+
+	// Watch the context: when it is cancelled (e.g. SIGTERM / App.Shutdown())
+	// initiate a graceful shutdown so in-flight requests are given time to finish.
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := s.Server.Shutdown(shutdownCtx); err != nil {
+			slog.Error("astra: HTTP server shutdown error", "error", err)
+		}
+	}()
+
 	return nil
 }
 
 // startMuxed binds a single TCP listener and routes gRPC vs HTTP using cmux.
 // gRPC traffic is detected by its Content-Type: application/grpc header.
 // All other traffic (HTTP/1.1 and h2c) is routed to the HTTP handler.
-func (s *Server) startMuxed(_ context.Context) error {
-
+func (s *Server) startMuxed(ctx context.Context) error {
 	ln, err := net.Listen("tcp", s.Addr)
 	if err != nil {
 		return fmt.Errorf("astra: failed to listen on %s: %w", s.Addr, err)
@@ -118,6 +165,9 @@ func (s *Server) startMuxed(_ context.Context) error {
 		httpSrv := &http.Server{
 			Handler:           h2c.NewHandler(s.Handler, &http2.Server{}),
 			ReadHeaderTimeout: s.ReadHeaderTimeout,
+			ReadTimeout:       s.ReadTimeout,
+			WriteTimeout:      s.WriteTimeout,
+			IdleTimeout:       s.IdleTimeout,
 			TLSConfig:         s.TLSConfig,
 		}
 
@@ -129,7 +179,20 @@ func (s *Server) startMuxed(_ context.Context) error {
 	// Start the mux router
 	go func() {
 		if err := m.Serve(); err != nil {
-			slog.Error("Astra cmux error", "error", err)
+			// cmux returns an error when the underlying listener is closed,
+			// which is expected during graceful shutdown — log only unexpected errors.
+			if ctx.Err() == nil {
+				slog.Error("Astra cmux error", "error", err)
+			}
+		}
+	}()
+
+	// Graceful shutdown: close the cmux listener when the context is cancelled.
+	go func() {
+		<-ctx.Done()
+		ln.Close()
+		if s.grpcServer != nil {
+			s.grpcServer.GracefulStop()
 		}
 	}()
 

@@ -67,5 +67,8 @@ func TestRouter_ErrorHandling(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
-	require.Contains(t, rec.Body.String(), "INTERNAL_SERVER_ERROR")
+	// Verify we return a structured JSON envelope rather than a bare text string.
+	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	require.Contains(t, rec.Body.String(), "INTERNAL_ERROR")
+	require.Contains(t, rec.Body.String(), "an unexpected error occurred")
 }

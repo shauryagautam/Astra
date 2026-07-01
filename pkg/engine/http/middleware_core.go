@@ -29,7 +29,6 @@ func (rw *responseWriter) Status() int {
 	return rw.status
 }
 
-
 // Recover returns a middleware that recovers from panics and returns a 500 error.
 func Recover(logger *slog.Logger) MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
@@ -71,7 +70,11 @@ func RequestID() MiddlewareFunc {
 	}
 }
 
-// Logger returns a middleware that logs incoming requests.
+// Logger returns a middleware that logs incoming requests with the real client IP.
+// When an Astra Context is available on the request (i.e. the request went through
+// the Astra router), ClientIP() is used which honours the configured trusted proxies.
+// This ensures that log entries show the originating client address rather than the
+// load-balancer's IP when the server is deployed behind a reverse proxy.
 func Logger(logger *slog.Logger) MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,23 +84,33 @@ func Logger(logger *slog.Logger) MiddlewareFunc {
 			}
 
 			start := time.Now()
-			
+
 			// Use our responseWriter to capture status
 			rw := &responseWriter{ResponseWriter: w}
-			
+
 			next.ServeHTTP(rw, r)
 
 			duration := time.Since(start)
 			status := rw.Status()
-			
+
 			msg := fmt.Sprintf("%d %s %s", status, r.Method, r.URL.Path)
-			
+
+			// Resolve the real client IP via the Astra context when available
+			// (respects trusted proxies set on the router). Fall back to the
+			// raw socket address for requests that bypass the Astra router.
+			var ip string
+			if c := FromRequest(r); c != nil {
+				ip = c.ClientIP()
+			} else {
+				ip = requestRemoteIP(r)
+			}
+
 			attrs := []any{
 				slog.Int("status", status),
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Duration("duration", duration),
-				slog.String("ip", r.RemoteAddr),
+				slog.String("ip", ip),
 			}
 
 			if reqID := r.Context().Value("request_id"); reqID != nil {
@@ -109,6 +122,21 @@ func Logger(logger *slog.Logger) MiddlewareFunc {
 			} else {
 				logger.Info(msg, attrs...)
 			}
+		})
+	}
+}
+
+// MaxBodySize returns a middleware that limits the size of incoming request bodies
+// using http.MaxBytesReader. Requests with bodies larger than maxBytes will receive
+// a 413 Request Entity Too Large response before the handler is invoked.
+// Set maxBytes to 0 to disable the limit (not recommended in production).
+func MaxBodySize(maxBytes int64) MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if maxBytes > 0 && r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

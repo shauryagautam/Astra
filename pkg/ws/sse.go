@@ -40,7 +40,10 @@ func (s *SSEServer) Handler(w http.ResponseWriter, r *http.Request, stream func(
 		select {
 		case <-r.Context().Done():
 			return
-		case event := <-events:
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
 			if event.ID != "" {
 				fmt.Fprintf(w, "id: %s\n", event.ID)
 			}

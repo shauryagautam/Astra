@@ -138,6 +138,24 @@ func (cb *CircuitBreaker) WithStore(store StateStore) *CircuitBreaker {
 	return cb
 }
 
+// WithMaxFailures sets the maximum number of consecutive failures that will
+// trip the circuit breaker into the Open state.
+func (cb *CircuitBreaker) WithMaxFailures(n int) *CircuitBreaker {
+	if n > 0 {
+		cb.maxFailures = n
+	}
+	return cb
+}
+
+// WithResetTimeout sets how long the circuit breaker remains Open before
+// transitioning to Half-Open to probe the downstream service.
+func (cb *CircuitBreaker) WithResetTimeout(d time.Duration) *CircuitBreaker {
+	if d > 0 {
+		cb.resetTimeout = d
+	}
+	return cb
+}
+
 // Execute wraps a function call with circuit breaker logic.
 func (cb *CircuitBreaker) Execute(ctx context.Context, fn func() error) error {
 	if !cb.allowRequest(ctx) {

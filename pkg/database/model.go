@@ -12,49 +12,52 @@ type Model struct {
 
 // Relation is the base for all relationship wrappers.
 type Relation[T any] struct {
-	loaded bool
+	Loaded bool `json:"-"`
 }
 
 // HasOne represents a 1-to-1 relationship.
 type HasOne[T any] struct {
 	Relation[T]
-	item *T
+	Item *T
 }
 
-func (r *HasOne[T]) Get() *T { return r.item }
+func (r *HasOne[T]) Get() *T { return r.Item }
 
 // HasMany represents a 1-to-N relationship.
 type HasMany[T any] struct {
 	Relation[T]
-	items []T
+	Items []T
 }
 
-func (r *HasMany[T]) All() []T { return r.items }
+func (r *HasMany[T]) All() []T { return r.Items }
 
 // BelongsTo represents the inverse of a HasOne/HasMany.
 type BelongsTo[T any] struct {
 	Relation[T]
-	item *T
+	Item *T
 }
 
-func (r *BelongsTo[T]) Get() *T { return r.item }
+func (r *BelongsTo[T]) Get() *T { return r.Item }
 
 // ManyToMany represents a N-to-N relationship via a pivot table.
 type ManyToMany[T any] struct {
 	Relation[T]
-	items []T
+	Items []T
 }
 
-func (r *ManyToMany[T]) All() []T { return r.items }
+func (r *ManyToMany[T]) All() []T { return r.Items }
 
 // MorphTo represents a polymorphic relation.
 type MorphTo struct {
 	Relation[any]
-	item any
+	Item any
 }
+
+func (r *MorphTo) Get() any { return r.Item }
 
 // MorphMany represents a polymorphic one-to-many relation.
 type MorphMany[T any] struct {
 	Relation[T]
-	items []T
+	Items []T
 }
+

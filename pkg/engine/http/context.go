@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	nethttp "net/http"
+	"net/netip"
 	"sync"
 
 	"github.com/shauryagautam/Astra/pkg/engine"
@@ -36,6 +37,10 @@ type Context struct {
 	written    bool
 	params     map[string]string
 
+	// TrustedProxies is set by the Router from its configuration and used by
+	// ClientIP() to securely resolve the real client address behind reverse proxies.
+	TrustedProxies []netip.Prefix
+
 	// Explicit Dependencies
 	ViewEngine engine.ViewEngine
 	Translator engine.Translator
@@ -60,6 +65,7 @@ func NewContext(w nethttp.ResponseWriter, r *nethttp.Request) *Context {
 	c.ViewEngine = nil
 	c.Translator = nil
 	c.Sessions = nil
+	c.TrustedProxies = nil
 	// Clear params from previous use
 	for k := range c.params {
 		delete(c.params, k)
@@ -236,10 +242,12 @@ func (c *Context) SendString(s string) error {
 	return err
 }
 
-// ClientIP returns the client's IP address.
+// ClientIP returns the client's real IP address.
+// It honours the router's TrustedProxies configuration to correctly resolve
+// the originating client address when the server sits behind a reverse proxy,
+// using a secure backwards-walking algorithm on X-Forwarded-For headers.
 func (c *Context) ClientIP() string {
-	// Simple implementation, in production use X-Forwarded-For if behind proxy
-	return c.Request.RemoteAddr
+	return GetClientIP(c.Request, c.TrustedProxies)
 }
 
 // ─── auth.RequestContext Implementation ───────────────────────────────────────

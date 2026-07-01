@@ -268,31 +268,31 @@ func defaultFuncMap() template.FuncMap {
 		},
 
 		// CSRF helpers - These now retrieve tokens from the *Context for unified security
-		"csrf_token": func(data any) string {
+		"csrf_token": func(data any) (string, error) {
 			if m, ok := data.(map[string]any); ok {
 				if c, ok := m["Context"].(interface {
 					GetString(string) string
 				}); ok {
 					token := c.GetString("astra_csrf_token")
 					if token != "" {
-						return token
+						return token, nil
 					}
 				}
 			}
-			panic("CSRF token unavailable. Ensure CSRF middleware is applied and {{ csrf_token . }} is used.")
+			return "", fmt.Errorf("csrf_token: CSRF token unavailable — ensure the CSRF middleware is applied to this route")
 		},
-		"csrf_field": func(data any) template.HTML {
+		"csrf_field": func(data any) (template.HTML, error) {
 			if m, ok := data.(map[string]any); ok {
 				if c, ok := m["Context"].(interface {
 					GetString(string) string
 				}); ok {
 					token := c.GetString("astra_csrf_token")
 					if token != "" {
-						return template.HTML(fmt.Sprintf(`<input type="hidden" name="_csrf" value="%s">`, token)) // #nosec G203
+						return template.HTML(fmt.Sprintf(`<input type="hidden" name="_csrf" value="%s">`, token)), nil // #nosec G203
 					}
 				}
 			}
-			panic("CSRF token unavailable. Ensure CSRF middleware is applied and {{ csrf_field . }} is used.")
+			return "", fmt.Errorf("csrf_field: CSRF token unavailable — ensure the CSRF middleware is applied to this route")
 		},
 
 		// Flash helpers

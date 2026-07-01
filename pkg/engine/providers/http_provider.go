@@ -48,7 +48,7 @@ func (p *HTTPProvider) Boot(app *engine.App) error {
 	if app.Config().App.Host == "" && app.Config().App.Port == 0 {
 		addr = ":8080"
 	}
-	p.server = astrahttp.NewServer(addr, p.Handler)
+	p.server = astrahttp.NewServer(addr, p.Handler, app.Config().App.MaxBodySize)
 	app.Logger().Info("Starting HTTP server", "addr", addr)
 	return p.server.Start(app.BaseContext())
 }

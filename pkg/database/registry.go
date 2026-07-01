@@ -260,30 +260,38 @@ func parseRelation(field reflect.StructField) RelationMeta {
 
 	// Fallback: infer type from generic wrapper type name.
 	if rel.Type == "" {
-		switch ft.Name() {
-		case "HasMany":
+		name := ft.Name()
+		if strings.HasPrefix(name, "HasMany[") {
 			rel.Type = "has_many"
 			if ft.NumField() > 1 {
 				rel.Related = ft.Field(1).Type.Elem()
 			}
-		case "HasOne":
+		} else if strings.HasPrefix(name, "HasOne[") {
 			rel.Type = "has_one"
 			if ft.NumField() > 1 {
-				rel.Related = ft.Field(1).Type
+				t := ft.Field(1).Type
+				if t.Kind() == reflect.Ptr {
+					t = t.Elem()
+				}
+				rel.Related = t
 			}
-		case "BelongsTo":
+		} else if strings.HasPrefix(name, "BelongsTo[") {
 			rel.Type = "belongs_to"
 			if ft.NumField() > 1 {
-				rel.Related = ft.Field(1).Type
+				t := ft.Field(1).Type
+				if t.Kind() == reflect.Ptr {
+					t = t.Elem()
+				}
+				rel.Related = t
 			}
-		case "ManyToMany":
+		} else if strings.HasPrefix(name, "ManyToMany[") {
 			rel.Type = "many_to_many"
 			if ft.NumField() > 1 {
 				rel.Related = ft.Field(1).Type.Elem()
 			}
-		case "MorphTo":
+		} else if name == "MorphTo" {
 			rel.Type = "morph_to"
-		case "MorphMany":
+		} else if strings.HasPrefix(name, "MorphMany[") {
 			rel.Type = "morph_many"
 			if ft.NumField() > 1 {
 				rel.Related = ft.Field(1).Type.Elem()
@@ -296,7 +304,30 @@ func parseRelation(field reflect.StructField) RelationMeta {
 
 func isRelationType(t reflect.Type) bool {
 	n := t.Name()
-	return n == "HasMany" || n == "HasOne" || n == "BelongsTo" || n == "ManyToMany" || n == "MorphTo" || n == "MorphMany"
+	return strings.HasPrefix(n, "HasMany[") ||
+		strings.HasPrefix(n, "HasOne[") ||
+		strings.HasPrefix(n, "BelongsTo[") ||
+		strings.HasPrefix(n, "ManyToMany[") ||
+		strings.HasPrefix(n, "MorphMany[") ||
+		n == "MorphTo"
+}
+
+
+// GetMetaByName finds registered model metadata by its type name or snake_case/table name representation.
+func GetMetaByName(name string) *ModelMeta {
+	var found *ModelMeta
+	norm := strings.ToLower(strings.TrimSpace(name))
+
+	registry.Range(func(key, value any) bool {
+		meta := value.(*ModelMeta)
+		tName := strings.ToLower(meta.Type.Name())
+		if tName == norm || toSnakeCase(meta.Type.Name()) == norm || strings.ToLower(meta.TableName) == norm {
+			found = meta
+			return false // stop iteration
+		}
+		return true
+	})
+	return found
 }
 
 func getTableName(t reflect.Type) string {
@@ -340,3 +371,4 @@ func toSnakeCase(s string) string {
 	}
 	return result.String()
 }
+

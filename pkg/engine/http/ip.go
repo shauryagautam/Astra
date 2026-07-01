@@ -95,3 +95,30 @@ func requestRemoteIP(r *http.Request) string {
 	}
 	return strings.TrimSpace(r.RemoteAddr)
 }
+
+// ParseTrustedProxies converts a string slice of IPs and CIDR blocks into the
+// netip.Prefix slice expected by GetClientIP. Invalid entries are silently
+// ignored, which is safe because missing entries simply reduce the trust boundary.
+func ParseTrustedProxies(raw []string) []netip.Prefix {
+	var out []netip.Prefix
+	for _, s := range raw {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if strings.Contains(s, "/") {
+			if p, err := netip.ParsePrefix(s); err == nil {
+				out = append(out, p)
+			}
+			continue
+		}
+		if addr, err := netip.ParseAddr(s); err == nil {
+			bits := 128
+			if addr.Is4() {
+				bits = 32
+			}
+			out = append(out, netip.PrefixFrom(addr, bits))
+		}
+	}
+	return out
+}

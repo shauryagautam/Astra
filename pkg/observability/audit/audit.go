@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/shauryagautam/Astra/pkg/database"
 )
 
 // AuditEvent represents a structured security or administrative event.
@@ -79,5 +81,18 @@ func (a *Auditor) Close() error {
 	if a.file != nil {
 		return a.file.Close()
 	}
+	return nil
+}
+
+// Audit implements database.Auditor interface.
+func (a *Auditor) Audit(ctx context.Context, entry database.AuditEntry) error {
+	a.Log(ctx, AuditEvent{
+		ActorID:      entry.UserID,
+		Action:       entry.Action,
+		ResourceType: entry.Table,
+		ResourceID:   entry.RecordID,
+		Timestamp:    time.Unix(entry.Timestamp, 0),
+		Success:      true,
+	})
 	return nil
 }

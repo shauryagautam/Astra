@@ -50,7 +50,7 @@ func (m *RoomManager) Run() {
 			m.mu.Unlock()
 		case client := <-m.Unregister:
 			m.mu.Lock()
-			if _, ok := m.Clients[client.UserID]; ok {
+			if current, ok := m.Clients[client.UserID]; ok && current == client {
 				delete(m.Clients, client.UserID)
 				close(client.Send)
 			}
@@ -121,6 +121,47 @@ func (m *RoomManager) GetRoom(id string) (*Room, bool) {
 	defer m.mu.RUnlock()
 	room, ok := m.Rooms[id]
 	return room, ok
+}
+
+// JoinRoom adds a client to a room, creating the room if it doesn't exist.
+func (m *RoomManager) JoinRoom(roomID string, client *Client) {
+	m.mu.Lock()
+	room, ok := m.Rooms[roomID]
+	if !ok {
+		room = &Room{
+			ID:       roomID,
+			Name:     roomID,
+			Clients:  make(map[string]*Client),
+			Created:  time.Now(),
+			Metadata: make(map[string]interface{}),
+		}
+		m.Rooms[roomID] = room
+	}
+	m.mu.Unlock()
+
+	room.mu.Lock()
+	room.Clients[client.UserID] = client
+	room.mu.Unlock()
+}
+
+// LeaveRoom removes a client from a room.
+func (m *RoomManager) LeaveRoom(roomID string, userID string) {
+	m.mu.RLock()
+	room, ok := m.Rooms[roomID]
+	m.mu.RUnlock()
+	if ok {
+		room.mu.Lock()
+		delete(room.Clients, userID)
+		room.mu.Unlock()
+
+		m.mu.Lock()
+		room.mu.RLock()
+		if len(room.Clients) == 0 {
+			delete(m.Rooms, roomID)
+		}
+		room.mu.RUnlock()
+		m.mu.Unlock()
+	}
 }
 
 // SendToUser sends a message to a specific user

@@ -14,11 +14,17 @@ type CorsConfig struct {
 	AllowHeaders     []string
 	ExposeHeaders    []string
 	AllowCredentials bool
-	MaxAge           int  // Cache duration for preflight in seconds (Access-Control-Max-Age)
-	Strict           bool // If true, return 403 for disallowed origins (default: pass through)
+	MaxAge           int // Cache duration for preflight in seconds (Access-Control-Max-Age)
+	// Strict controls how disallowed origins are handled.
+	// When true: disallowed origins receive a 403 Forbidden immediately.
+	// When false: the request is passed through without CORS headers (default for dev).
+	// PRODUCTION: always set Strict to true, or use ProductionCors().
+	Strict bool
 }
 
-// DefaultCors returns a permissive CORS config suitable for local development.
+// DefaultCors returns a PERMISSIVE CORS config suitable for LOCAL DEVELOPMENT ONLY.
+// It allows all origins and does NOT enforce Strict mode.
+// For production use, call ProductionCors() with your allowed origins instead.
 func DefaultCors() CorsConfig {
 	return CorsConfig{
 		AllowOrigins:     []string{"*"},
@@ -27,6 +33,26 @@ func DefaultCors() CorsConfig {
 		ExposeHeaders:    []string{},
 		AllowCredentials: false,
 		MaxAge:           86400,
+		Strict:           false, // dev-only: disallowed origins pass through
+	}
+}
+
+// ProductionCors returns a strict CORS config that REJECTS (403) requests from
+// any origin not in allowedOrigins. Use this in production instead of DefaultCors.
+//
+//	r.Use(http.CORS(http.ProductionCors(
+//	    "https://app.example.com",
+//	    "https://admin.example.com",
+//	)))
+func ProductionCors(allowedOrigins ...string) CorsConfig {
+	return CorsConfig{
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		ExposeHeaders:    []string{},
+		AllowCredentials: false,
+		MaxAge:           86400,
+		Strict:           true, // production: disallowed origins receive 403
 	}
 }
 

@@ -200,6 +200,10 @@ func (c *AstraConfig) ValidateProduction() error {
 		errs = append(errs, "DB_SSL cannot be 'disable' in production")
 	}
 
+	if c.App.MaxBodySize <= 0 {
+		errs = append(errs, "APP_MAX_BODY_SIZE must be set in production to prevent request flooding (e.g. 10485760 for 10 MB)")
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("production security check failed:\n  - %s",
 			strings.Join(errs, "\n  - "))

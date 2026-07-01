@@ -64,15 +64,7 @@ func (h *Hub) Run() {
 		case conn := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.connections[conn]; ok {
-				delete(h.connections, conn)
-				for room := range conn.rooms {
-					if _, ok := h.rooms[room]; ok {
-						delete(h.rooms[room], conn)
-						if len(h.rooms[room]) == 0 {
-							delete(h.rooms, room)
-						}
-					}
-				}
+				h.removeConnection(conn)
 				close(conn.send)
 			}
 			h.mu.Unlock()
@@ -82,19 +74,33 @@ func (h *Hub) Run() {
 				select {
 				case conn.send <- message:
 				default:
+					h.removeConnection(conn)
 					close(conn.send)
-					delete(h.connections, conn)
 				}
 			}
 			h.mu.Unlock()
 		case <-h.stop:
 			h.mu.Lock()
 			for conn := range h.connections {
+				h.removeConnection(conn)
 				close(conn.send)
-				delete(h.connections, conn)
 			}
 			h.mu.Unlock()
 			return
+		}
+	}
+}
+
+// removeConnection removes a connection from connections and all rooms.
+// MUST be called while holding h.mu write lock.
+func (h *Hub) removeConnection(conn *Connection) {
+	delete(h.connections, conn)
+	for room := range conn.rooms {
+		if _, ok := h.rooms[room]; ok {
+			delete(h.rooms[room], conn)
+			if len(h.rooms[room]) == 0 {
+				delete(h.rooms, room)
+			}
 		}
 	}
 }

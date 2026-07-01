@@ -3,14 +3,19 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/shauryagautam/Astra/pkg/engine/config"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // App is the pure Lifecycle Manager of the Astra framework.
@@ -26,6 +31,12 @@ type App struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 
+	// parentCtx holds the externally-supplied system context (e.g. from Kubernetes
+	// orchestration). Boot and Shutdown timeout derivations are chained off this
+	// context so that upstream cancellations propagate immediately instead of
+	// blocking for the full fallback timeout.
+	parentCtx context.Context
+
 	onStart []func(context.Context) error
 	onStop  []func(context.Context) error
 
@@ -33,18 +44,35 @@ type App struct {
 }
 
 // New creates a new Astra application kernel with minimal core dependencies.
+// The signal-notification context is established here; callers that need to
+// supply a custom parent context should use NewWithContext instead.
 func New(
 	config *config.AstraConfig,
 	env *config.Config,
 	logger *slog.Logger,
 ) *App {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	return NewWithContext(context.Background(), config, env, logger)
+}
+
+// NewWithContext creates a new Astra application kernel derived from the
+// supplied parent context. This is the canonical entry-point when running
+// inside an orchestration layer (Kubernetes, systemd) that provides its own
+// cancellation chain. The signal-notification context wraps parentCtx so that
+// both SIGTERM signals and upstream context cancellations cause a clean exit.
+func NewWithContext(
+	parentCtx context.Context,
+	cfg *config.AstraConfig,
+	env *config.Config,
+	logger *slog.Logger,
+) *App {
+	signalCtx, cancel := signal.NotifyContext(parentCtx, os.Interrupt, syscall.SIGTERM)
 	return &App{
-		config:       config,
+		config:       cfg,
 		env:          env,
 		logger:       logger,
-		ctx:          ctx,
+		ctx:          signalCtx,
 		cancel:       cancel,
+		parentCtx:    parentCtx,
 		providers:    make([]Provider, 0),
 		onStart:      make([]func(context.Context) error, 0),
 		onStop:       make([]func(context.Context) error, 0),
@@ -105,14 +133,16 @@ func (a *App) Start() error {
 
 // Run boots the application and blocks until a termination signal is received.
 // It handles the full lifecycle from Boot to Graceful Shutdown.
+// The internal parent context (set by New or NewWithContext) is used for all
+// timeout derivations throughout the lifecycle.
 func (a *App) Run() error {
 	if err := a.Boot(); err != nil {
 		return err
 	}
-	
+
 	a.logger.Info("Astra kernel is running. Press Ctrl+C to stop.")
 	<-a.BaseContext().Done()
-	
+
 	a.logger.Info("Shutdown signal received. Cleaning up...")
 	return a.Shutdown()
 }
@@ -120,15 +150,21 @@ func (a *App) Run() error {
 // Shutdown gracefully stops the application.
 // It executes onStop hooks and provider shutdown methods in reverse order of registration.
 // Aggregates all errors encountered using errors.Join for a single cohesive return.
-// It uses a fresh 15-second timeout context to guarantee termination.
+//
+// The 15-second termination budget is now derived from the parent system context
+// (set at construction time) rather than context.Background(). If the orchestration
+// layer cancels the parent context before the 15-second window expires, the
+// shutdown loop will respect that cancellation immediately.
 func (a *App) Shutdown() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.cancel()
 
-	// Hardened Shutdown Protection: fresh context to ensure cleanup completes even if base ctx is canceled
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// Derive the shutdown budget from the parent context so that orchestration
+	// signals (e.g. a Kubernetes SIGTERM deadline) can interrupt the cleanup
+	// loop before the full 15-second fallback expires.
+	ctx, cancel := context.WithTimeout(a.parentCtx, 15*time.Second)
 	defer cancel()
 
 	var errs []error
@@ -153,11 +189,50 @@ func (a *App) Shutdown() error {
 	return errors.Join(errs...)
 }
 
-// Recover handles application panics by logging the error.
+// Recover handles application panics with full structured context.
+//
+// It captures the raw panic value, collects a runtime stack trace (up to 8 KiB)
+// and, when an active OpenTelemetry span is available on the application's base
+// context, records the panic as a span event and marks the span as errored before
+// logging the fatal entry.  This ensures distributed traces surface panics with
+// full attribution rather than simply disappearing.
+//
+// Usage – defer this at the top of any goroutine that must survive panics:
+//
+//	defer app.Recover()
 func (a *App) Recover() {
-	if r := recover(); r != nil {
-		a.logger.Error("app panic recovered", "error", r)
+	r := recover()
+	if r == nil {
+		return
 	}
+
+	// Collect the full goroutine stack trace for deep diagnostics.
+	const maxStackSize = 8 << 10 // 8 KiB
+	stackBuf := make([]byte, maxStackSize)
+	n := runtime.Stack(stackBuf, false)
+	stackTrace := string(stackBuf[:n])
+
+	panicMsg := fmt.Sprintf("%v", r)
+
+	// Inject the panic event and stack trace into the active OTel span (if any).
+	// We read from the kernel's base context which is the canonical carrier for
+	// span propagation across Astra components.
+	if span := trace.SpanFromContext(a.ctx); span != nil && span.IsRecording() {
+		span.SetStatus(codes.Error, "unhandled panic recovered")
+		span.RecordError(
+			fmt.Errorf("panic: %s", panicMsg),
+			trace.WithStackTrace(true),
+		)
+		span.SetAttributes(
+			attribute.String("panic.value", panicMsg),
+			attribute.String("panic.stack_trace", stackTrace),
+		)
+	}
+
+	a.logger.Error("app panic recovered",
+		"panic_value", panicMsg,
+		"stack_trace", stackTrace,
+	)
 }
 
 // GetHealthChecks returns all registered health providers.
@@ -165,7 +240,7 @@ func (a *App) Recover() {
 func (a *App) GetHealthChecks() map[string]HealthProvider {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	
+
 	checks := make(map[string]HealthProvider, len(a.healthChecks))
 	for k, v := range a.healthChecks {
 		checks[k] = v
@@ -194,7 +269,10 @@ func (a *App) RegisterProvider(p Provider) {
 
 // Boot initializes all registered providers in a strict three-phase sequence:
 // Register → Boot → Ready. The Ready phase only executes once all providers
-// have completed their Boot phase. OnStart hooks are wrapped in a 30s timeout.
+// have completed their Boot phase.
+//
+// OnStart hooks run inside a 30-second window derived from the parent system
+// context so that orchestration-layer cancellations are respected during boot.
 func (a *App) Boot() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -220,8 +298,10 @@ func (a *App) Boot() error {
 		}
 	}
 
-	// Startup Protection: Wrap OnStart hooks with a 30-second context timeout
-	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+	// Startup Protection: Derive the 30-second budget from the parent context so
+	// that an upstream cancellation (e.g. a Kubernetes pre-stop hook) immediately
+	// aborts the boot sequence rather than blocking for the full window.
+	ctx, cancel := context.WithTimeout(a.parentCtx, 30*time.Second)
 	defer cancel()
 
 	for _, fn := range a.onStart {

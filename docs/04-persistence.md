@@ -16,14 +16,14 @@ Models are plain Go structs with optional `astra` tags to describe database beha
 
 ```go
 type Post struct {
-    ID        int64     `astra:"primary_key"`
-    Title     string    `astra:"searchable"`
+    ID        int64     `orm:"primary_key"`
+    Title     string    `orm:"column:title"`
     Body      string
-    UserID    int64     `astra:"foreign_key"`
+    UserID    int64     `orm:"column:user_id"`
     
     // Relationships
-    Author    *User     `astra:"belongs_to"`
-    Comments  []Comment `astra:"has_many"`
+    Author    *User     `orm:"belongsTo"`
+    Comments  []Comment `orm:"hasMany"`
 }
 ```
 

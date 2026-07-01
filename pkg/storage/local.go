@@ -136,6 +136,10 @@ func (s *LocalStorage) Copy(ctx context.Context, src, dest string) error {
 	if _, err := io.Copy(destFile, srcFile); err != nil {
 		return fmt.Errorf("failed to copy file: %w", err)
 	}
+
+	if err := destFile.Close(); err != nil {
+		return fmt.Errorf("failed to close destination file: %w", err)
+	}
 	return nil
 }
 

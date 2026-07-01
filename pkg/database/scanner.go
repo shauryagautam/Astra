@@ -147,10 +147,40 @@ type convertingScanner struct {
 	field reflect.Value // addressable concrete field (non-pointer)
 }
 
+func convertToBool(src any) (bool, bool) {
+	switch v := src.(type) {
+	case bool:
+		return v, true
+	case int64:
+		return v != 0, true
+	case int:
+		return v != 0, true
+	case int32:
+		return v != 0, true
+	case float64:
+		return v != 0.0, true
+	case []byte:
+		str := string(v)
+		return str == "1" || str == "true" || str == "TRUE" || str == "True", true
+	case string:
+		return v == "1" || v == "true" || v == "TRUE" || v == "True", true
+	default:
+		return false, false
+	}
+}
+
 func (c *convertingScanner) Scan(src any) error {
 	if src == nil {
 		c.field.Set(reflect.Zero(c.field.Type()))
 		return nil
+	}
+
+	// Handle boolean conversions manually since int64 is not directly convertible to bool in Go
+	if c.field.Kind() == reflect.Bool {
+		if b, ok := convertToBool(src); ok {
+			c.field.SetBool(b)
+			return nil
+		}
 	}
 
 	// Fast path: direct assignability (most fields will match).
@@ -197,9 +227,17 @@ func (n *nullablePtr) Scan(src any) error {
 			return err
 		}
 	} else {
+		elemType := n.field.Type().Elem()
+		if elemType.Kind() == reflect.Bool {
+			if b, ok := convertToBool(src); ok {
+				ptr.Elem().SetBool(b)
+				n.field.Set(ptr)
+				return nil
+			}
+		}
+
 		// Use convertible assignment for basic types (int64→int, etc.).
 		srcVal := reflect.ValueOf(src)
-		elemType := n.field.Type().Elem()
 		if !srcVal.Type().AssignableTo(elemType) {
 			if !srcVal.Type().ConvertibleTo(elemType) {
 				return fmt.Errorf("orm: cannot scan %T into %s", src, elemType)

@@ -147,6 +147,84 @@ func TestRawQuery(t *testing.T) {
 	assert.Equal(t, "RawTest", users[0].Name)
 }
 
+func TestORM_SoftDeletePrecedence(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: ":memory:"})
+	assert.NoError(t, err)
+	defer db.Close()
+
+	sqlStr, _ := Query[User](db).Where("name", "=", "Alice").OrWhere("email", "=", "bob@example.com").ToSQL()
+	assert.Contains(t, sqlStr, "`deleted_at` IS NULL AND (`name` = ? OR `email` = ?)")
+}
+
+type SecureUser struct {
+	Model
+	Name string `orm:"column:name"`
+	Role string `orm:"column:role;guarded"`
+}
+
+func (s *SecureUser) TableName() string {
+	return "secure_users"
+}
+
+func TestORMSecurity(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(Config{
+		Driver: "sqlite",
+		DSN:    ":memory:",
+	})
+	assert.NoError(t, err)
+	defer db.Close()
+
+	// 1. Test SQL Injection via Operator validation
+	t.Run("SQL Injection Operator Whitelist", func(t *testing.T) {
+		q := Query[User](db).Where("name", "= OR 1=1; --", "Alice")
+		_, err := q.Get(ctx)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unsafe/invalid operator")
+	})
+
+	// 2. Test SQL Injection via Column name validation
+	t.Run("SQL Injection Column Validation", func(t *testing.T) {
+		q := Query[User](db).Where("name; DROP TABLE users; --", "=", "Alice")
+		_, err := q.Get(ctx)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid column name")
+	})
+
+	// 3. Test SQL Injection via OrderBy direction validation
+	t.Run("SQL Injection OrderBy Direction Validation", func(t *testing.T) {
+		q := Query[User](db).OrderBy("name", "ASC; DROP TABLE users; --")
+		_, err := q.Get(ctx)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid order direction")
+	})
+
+	// 4. Test Mass Assignment Protection on Update(data)
+	t.Run("Mass Assignment Protection on Update", func(t *testing.T) {
+		_, err = db.Exec(ctx, "CREATE TABLE secure_users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, role TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)")
+		assert.NoError(t, err)
+
+		// Create user first
+		su := SecureUser{Name: "Alice", Role: "user"}
+		created, err := Query[SecureUser](db).Create(&su, ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, "", created.Role) // role is guarded, so it is not inserted on Create
+
+		// Attempt to update name and role via mass-update
+		err = Query[SecureUser](db).Where("id", "=", created.ID).Update(map[string]any{
+			"name": "Bob",
+			"role": "admin",
+		}, ctx)
+		assert.NoError(t, err)
+
+		// Verify that name was updated, but role remained "" (guarded)
+		found, err := Query[SecureUser](db).Where("id", "=", created.ID).First(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, "Bob", found.Name)
+		assert.Equal(t, "", found.Role) // should NOT be admin
+	})
+}
+
 func BenchmarkScanner(b *testing.B) {
 	ctx := context.Background()
 	db, _ := Open(Config{Driver: "sqlite", DSN: ":memory:"})

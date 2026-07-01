@@ -34,6 +34,7 @@ func TestRedisWorker_Stop_Graceful(t *testing.T) {
 	var jobDone atomic.Bool
 	job := &sleepJob{sleep: 100 * time.Millisecond, done: &jobDone}
 
+	start := time.Now()
 	worker.wg.Add(1)
 	worker.inFlight.Add(1)
 	go func() {
@@ -46,7 +47,6 @@ func TestRedisWorker_Stop_Graceful(t *testing.T) {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	start := time.Now()
 	err := worker.Stop(shutdownCtx)
 	duration := time.Since(start)
 

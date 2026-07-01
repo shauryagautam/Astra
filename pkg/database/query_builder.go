@@ -15,18 +15,56 @@ import (
 
 // QueryBuilder is a generic fluent query builder.
 type QueryBuilder[T any] struct {
-	db          *DB
-	meta        *ModelMeta
-	ctx         context.Context
-	wheres      []whereClause
-	orders      []orderClause
-	limit       int
-	offset      int
+	db           *DB
+	meta         *ModelMeta
+	ctx          context.Context
+	wheres       []whereClause
+	orders       []orderClause
+	limit        int
+	offset       int
 	with         []string
 	withTrashed  bool
 	baseURL      string
 	lock         string
 	globalScopes []func(*QueryBuilder[T]) *QueryBuilder[T]
+	// tableNameOverride is set by Table() and avoids mutating the shared ModelMeta.
+	tableNameOverride string
+	err               error
+}
+
+var safeOperators = map[string]bool{
+	"=":           true,
+	"!=":          true,
+	"<>":          true,
+	"<":           true,
+	"<=":          true,
+	">":           true,
+	">=":          true,
+	"LIKE":        true,
+	"ILIKE":       true,
+	"NOT LIKE":    true,
+	"IN":          true,
+	"NOT IN":      true,
+	"IS NULL":     true,
+	"IS NOT NULL": true,
+}
+
+func isValidIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+	if len(name) > 64 {
+		return false
+	}
+	for i, r := range name {
+		if i == 0 && (r >= '0' && r <= '9') {
+			return false
+		}
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.') {
+			return false
+		}
+	}
+	return true
 }
 
 type whereClause struct {
@@ -88,37 +126,97 @@ func (q *QueryBuilder[T]) ApplyScopes() *QueryBuilder[T] {
 // ─── Clause Methods ────────────────────────────────────────────────────────────
 
 func (q *QueryBuilder[T]) Where(column, operator string, value any) *QueryBuilder[T] {
-	q.wheres = append(q.wheres, whereClause{Column: column, Operator: operator, Value: value})
+	if q.err != nil {
+		return q
+	}
+	if !isValidIdentifier(column) {
+		q.err = fmt.Errorf("orm: invalid column name %q", column)
+		return q
+	}
+	op := strings.ToUpper(strings.TrimSpace(operator))
+	if !safeOperators[op] {
+		q.err = fmt.Errorf("orm: unsafe/invalid operator %q", operator)
+		return q
+	}
+	q.wheres = append(q.wheres, whereClause{Column: column, Operator: op, Value: value})
 	return q
 }
 
 func (q *QueryBuilder[T]) WhereRaw(raw string, args ...any) *QueryBuilder[T] {
+	if q.err != nil {
+		return q
+	}
 	q.wheres = append(q.wheres, whereClause{Raw: raw, Args: args})
 	return q
 }
 
 func (q *QueryBuilder[T]) OrWhere(column, operator string, value any) *QueryBuilder[T] {
-	q.wheres = append(q.wheres, whereClause{Column: column, Operator: operator, Value: value, Or: true})
+	if q.err != nil {
+		return q
+	}
+	if !isValidIdentifier(column) {
+		q.err = fmt.Errorf("orm: invalid column name %q", column)
+		return q
+	}
+	op := strings.ToUpper(strings.TrimSpace(operator))
+	if !safeOperators[op] {
+		q.err = fmt.Errorf("orm: unsafe/invalid operator %q", operator)
+		return q
+	}
+	q.wheres = append(q.wheres, whereClause{Column: column, Operator: op, Value: value, Or: true})
 	return q
 }
 
 func (q *QueryBuilder[T]) WhereIn(column string, values []any) *QueryBuilder[T] {
+	if q.err != nil {
+		return q
+	}
+	if !isValidIdentifier(column) {
+		q.err = fmt.Errorf("orm: invalid column name %q", column)
+		return q
+	}
 	q.wheres = append(q.wheres, whereClause{Column: column, Operator: "IN", Value: values})
 	return q
 }
 
 func (q *QueryBuilder[T]) WhereNull(column string) *QueryBuilder[T] {
+	if q.err != nil {
+		return q
+	}
+	if !isValidIdentifier(column) {
+		q.err = fmt.Errorf("orm: invalid column name %q", column)
+		return q
+	}
 	q.wheres = append(q.wheres, whereClause{Column: column, Operator: "IS NULL"})
 	return q
 }
 
 func (q *QueryBuilder[T]) WhereNotNull(column string) *QueryBuilder[T] {
+	if q.err != nil {
+		return q
+	}
+	if !isValidIdentifier(column) {
+		q.err = fmt.Errorf("orm: invalid column name %q", column)
+		return q
+	}
 	q.wheres = append(q.wheres, whereClause{Column: column, Operator: "IS NOT NULL"})
 	return q
 }
 
 func (q *QueryBuilder[T]) OrderBy(column, direction string) *QueryBuilder[T] {
-	q.orders = append(q.orders, orderClause{Column: column, Direction: direction})
+	if q.err != nil {
+		return q
+	}
+	if !isValidIdentifier(column) {
+		q.err = fmt.Errorf("orm: invalid column name %q", column)
+		return q
+	}
+	dir := strings.ToUpper(strings.TrimSpace(direction))
+	if dir != "ASC" && dir != "DESC" {
+		q.err = fmt.Errorf("orm: invalid order direction %q", direction)
+		return q
+	}
+	q.orders = append(q.orders, orderClause{Column: column, Direction: dir})
 	return q
 }
 
@@ -146,9 +244,20 @@ func (q *QueryBuilder[T]) Scope(fn func(*QueryBuilder[T]) *QueryBuilder[T]) *Que
 	return fn(q)
 }
 
+// Table overrides the table name for this query without mutating the shared
+// ModelMeta cache (which would cause a data race with concurrent queries).
 func (q *QueryBuilder[T]) Table(name string) *QueryBuilder[T] {
-	q.meta.TableName = name
+	q.tableNameOverride = name
 	return q
+}
+
+// getTableName returns the effective table name: the per-query override when
+// set via Table(), otherwise the model's default table name.
+func (q *QueryBuilder[T]) getTableName() string {
+	if q.tableNameOverride != "" {
+		return q.tableNameOverride
+	}
+	return q.meta.TableName
 }
 
 func (q *QueryBuilder[T]) LockForUpdate() *QueryBuilder[T] {
@@ -165,6 +274,9 @@ func (q *QueryBuilder[T]) WithBaseURL(url string) *QueryBuilder[T] {
 // ─── Terminator Methods ────────────────────────────────────────────────────────
 
 func (q *QueryBuilder[T]) Get(ctx ...context.Context) ([]T, error) {
+	if q.err != nil {
+		return nil, q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -206,6 +318,10 @@ func (q *QueryBuilder[T]) Get(ctx ...context.Context) ([]T, error) {
 // Go 1.23+ iter.Seq2 style.
 func (q *QueryBuilder[T]) All(ctx ...context.Context) iter.Seq2[*T, error] {
 	return func(yield func(*T, error) bool) {
+		if q.err != nil {
+			yield(nil, q.err)
+			return
+		}
 		if len(ctx) > 0 {
 			q.ctx = ctx[0]
 		}
@@ -319,6 +435,9 @@ func (q *QueryBuilder[T]) FirstOrCreate(attributes *T, ctx ...context.Context) (
 }
 
 func (q *QueryBuilder[T]) Count(ctx ...context.Context) (int64, error) {
+	if q.err != nil {
+		return 0, q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -340,6 +459,12 @@ func (q *QueryBuilder[T]) Exists(ctx ...context.Context) (bool, error) {
 }
 
 func (q *QueryBuilder[T]) Pluck(column string, ctx ...context.Context) ([]any, error) {
+	if q.err != nil {
+		return nil, q.err
+	}
+	if !isValidIdentifier(column) {
+		return nil, fmt.Errorf("orm: invalid column name %q", column)
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -349,7 +474,7 @@ func (q *QueryBuilder[T]) Pluck(column string, ctx ...context.Context) ([]any, e
 	sb.WriteString("SELECT ")
 	sb.WriteString(q.db.dialect.QuoteIdentifier(column))
 	sb.WriteString(" FROM ")
-	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
+	sb.WriteString(q.db.dialect.QuoteIdentifier(q.getTableName()))
 
 	whereStr, args := q.buildWheres(0)
 	if whereStr != "" {
@@ -488,6 +613,9 @@ func (q *QueryBuilder[T]) CursorPaginate(ctx context.Context, column, cursor str
 // ─── Mutation Methods ──────────────────────────────────────────────────────────
 
 func (q *QueryBuilder[T]) Create(model *T, ctx ...context.Context) (*T, error) {
+	if q.err != nil {
+		return nil, q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -505,6 +633,12 @@ func (q *QueryBuilder[T]) Create(model *T, ctx ...context.Context) (*T, error) {
 	var values []any
 	for _, col := range q.meta.Columns {
 		if col.IsAuto || col.IsSoftDel || col.IsGuarded {
+			if col.IsGuarded {
+				field := fieldByIndex(v, col.FieldIndex)
+				if field.CanSet() {
+					field.Set(reflect.Zero(col.Type))
+				}
+			}
 			continue
 		}
 		columns = append(columns, col.ColumnName)
@@ -535,16 +669,25 @@ func (q *QueryBuilder[T]) Create(model *T, ctx ...context.Context) (*T, error) {
 }
 
 func (q *QueryBuilder[T]) Update(data map[string]any, ctx ...context.Context) error {
+	if q.err != nil {
+		return q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
 	q = q.ApplyScopes()
 	sqlStr, args := q.toUpdateSQL(data)
+	if sqlStr == "" {
+		return nil // Nothing to update
+	}
 	_, err := q.db.conn.Exec(q.ctx, sqlStr, args...)
 	return err
 }
 
 func (q *QueryBuilder[T]) Save(model *T, ctx ...context.Context) error {
+	if q.err != nil {
+		return q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -576,6 +719,9 @@ func (q *QueryBuilder[T]) Save(model *T, ctx ...context.Context) error {
 }
 
 func (q *QueryBuilder[T]) Delete(ctx ...context.Context) error {
+	if q.err != nil {
+		return q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -589,6 +735,9 @@ func (q *QueryBuilder[T]) Delete(ctx ...context.Context) error {
 }
 
 func (q *QueryBuilder[T]) ForceDelete(ctx ...context.Context) error {
+	if q.err != nil {
+		return q.err
+	}
 	if len(ctx) > 0 {
 		q.ctx = ctx[0]
 	}
@@ -599,6 +748,9 @@ func (q *QueryBuilder[T]) ForceDelete(ctx ...context.Context) error {
 }
 
 func (q *QueryBuilder[T]) Restore(ctx ...context.Context) error {
+	if q.err != nil {
+		return q.err
+	}
 	if !q.meta.HasSoftDel {
 		return fmt.Errorf("orm: model %s does not support soft delete", q.meta.TableName)
 	}
@@ -663,7 +815,7 @@ func (q *QueryBuilder[T]) ToSQL() (string, []any) {
 func (q *QueryBuilder[T]) buildSelectSQL() (string, []any) {
 	var sb strings.Builder
 	sb.WriteString("SELECT * FROM ")
-	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
+	sb.WriteString(q.db.dialect.QuoteIdentifier(q.getTableName()))
 
 	whereStr, args := q.buildWheres(0)
 	if whereStr != "" {
@@ -704,57 +856,70 @@ func (q *QueryBuilder[T]) buildSelectSQL() (string, []any) {
 func (q *QueryBuilder[T]) buildWheres(offset int) (string, []any) {
 	var sb strings.Builder
 	var args []any
-	hasClauses := false
 
-	// Automatic soft-delete filter
-	if q.meta.HasSoftDel && !q.withTrashed {
+	hasSoftDelFilter := q.meta.HasSoftDel && !q.withTrashed
+	if hasSoftDelFilter {
 		sb.WriteString(q.db.dialect.QuoteIdentifier("deleted_at"))
 		sb.WriteString(" IS NULL")
-		hasClauses = true
 	}
 
-	for _, w := range q.wheres {
-		if hasClauses {
-			if w.Or {
-				sb.WriteString(" OR ")
-			} else {
-				sb.WriteString(" AND ")
-			}
-		}
+	if len(q.wheres) > 0 {
+		var userSb strings.Builder
+		var userArgs []any
+		hasClauses := false
 
-		switch {
-		case w.Raw != "":
-			sb.WriteString(w.Raw)
-			args = append(args, w.Args...)
-
-		case w.Operator == "IN":
-			vals := w.Value.([]any)
-			sb.WriteString(q.db.dialect.QuoteIdentifier(w.Column))
-			sb.WriteString(" IN (")
-			for i, v := range vals {
-				if i > 0 {
-					sb.WriteString(", ")
+		for _, w := range q.wheres {
+			if hasClauses {
+				if w.Or {
+					userSb.WriteString(" OR ")
+				} else {
+					userSb.WriteString(" AND ")
 				}
-				sb.WriteString(q.db.dialect.Placeholder(offset + len(args) + 1))
-				args = append(args, v)
 			}
-			sb.WriteString(")")
 
-		case strings.Contains(w.Operator, "NULL"):
-			sb.WriteString(q.db.dialect.QuoteIdentifier(w.Column))
-			sb.WriteString(" ")
-			sb.WriteString(w.Operator)
+			switch {
+			case w.Raw != "":
+				userSb.WriteString(w.Raw)
+				userArgs = append(userArgs, w.Args...)
 
-		default:
-			sb.WriteString(q.db.dialect.QuoteIdentifier(w.Column))
-			sb.WriteString(" ")
-			sb.WriteString(w.Operator)
-			sb.WriteString(" ")
-			sb.WriteString(q.db.dialect.Placeholder(offset + len(args) + 1))
-			args = append(args, w.Value)
+			case w.Operator == "IN":
+				vals := w.Value.([]any)
+				userSb.WriteString(q.db.dialect.QuoteIdentifier(w.Column))
+				userSb.WriteString(" IN (")
+				for i, v := range vals {
+					if i > 0 {
+						userSb.WriteString(", ")
+					}
+					userSb.WriteString(q.db.dialect.Placeholder(offset + len(userArgs) + 1))
+					userArgs = append(userArgs, v)
+				}
+				userSb.WriteString(")")
+
+			case strings.Contains(w.Operator, "NULL"):
+				userSb.WriteString(q.db.dialect.QuoteIdentifier(w.Column))
+				userSb.WriteString(" ")
+				userSb.WriteString(w.Operator)
+
+			default:
+				userSb.WriteString(q.db.dialect.QuoteIdentifier(w.Column))
+				userSb.WriteString(" ")
+				userSb.WriteString(w.Operator)
+				userSb.WriteString(" ")
+				userSb.WriteString(q.db.dialect.Placeholder(offset + len(userArgs) + 1))
+				userArgs = append(userArgs, w.Value)
+			}
+
+			hasClauses = true
 		}
 
-		hasClauses = true
+		if hasSoftDelFilter {
+			sb.WriteString(" AND (")
+			sb.WriteString(userSb.String())
+			sb.WriteString(")")
+		} else {
+			sb.WriteString(userSb.String())
+		}
+		args = append(args, userArgs...)
 	}
 
 	return sb.String(), args
@@ -763,7 +928,7 @@ func (q *QueryBuilder[T]) buildWheres(offset int) (string, []any) {
 func (q *QueryBuilder[T]) toCountSQL() (string, []any) {
 	var sb strings.Builder
 	sb.WriteString("SELECT COUNT(*) FROM ")
-	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
+	sb.WriteString(q.db.dialect.QuoteIdentifier(q.getTableName()))
 
 	whereStr, args := q.buildWheres(0)
 	if whereStr != "" {
@@ -776,7 +941,7 @@ func (q *QueryBuilder[T]) toCountSQL() (string, []any) {
 func (q *QueryBuilder[T]) toInsertSQL(columns []string, values []any) (string, []any) {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO ")
-	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
+	sb.WriteString(q.db.dialect.QuoteIdentifier(q.getTableName()))
 	sb.WriteString(" (")
 	for i, col := range columns {
 		if i > 0 {
@@ -795,6 +960,25 @@ func (q *QueryBuilder[T]) toInsertSQL(columns []string, values []any) (string, [
 	return sb.String(), values
 }
 
+func (q *QueryBuilder[T]) isColumnGuarded(colName string) bool {
+	// 1. Direct lookup by key
+	if col, ok := q.meta.ColumnByCol[colName]; ok {
+		return col.IsGuarded
+	}
+	// 2. Lookup by snake_case
+	snake := toSnakeCase(colName)
+	if col, ok := q.meta.ColumnByCol[snake]; ok {
+		return col.IsGuarded
+	}
+	// 3. Fallback: search by FieldName (case-insensitive)
+	for _, col := range q.meta.Columns {
+		if strings.EqualFold(col.FieldName, colName) {
+			return col.IsGuarded
+		}
+	}
+	return false
+}
+
 // toUpdateSQL builds a single-pass UPDATE statement.
 // SET placeholders are $1..$n; WHERE placeholders continue from $n+1.
 func (q *QueryBuilder[T]) toUpdateSQL(data map[string]any) (string, []any) {
@@ -802,14 +986,26 @@ func (q *QueryBuilder[T]) toUpdateSQL(data map[string]any) (string, []any) {
 	var args []any
 
 	sb.WriteString("UPDATE ")
-	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
+	sb.WriteString(q.db.dialect.QuoteIdentifier(q.getTableName()))
 	sb.WriteString(" SET ")
 
 	keys := make([]string, 0, len(data))
 	for col := range data {
+		// Mass assignment protection
+		if q.isColumnGuarded(col) {
+			continue
+		}
+		// Skip primary key and auto-increment columns
+		if colMeta, ok := q.meta.ColumnByCol[col]; ok && (colMeta.IsPK || colMeta.IsAuto) {
+			continue
+		}
 		keys = append(keys, col)
 	}
 	sort.Strings(keys)
+
+	if len(keys) == 0 {
+		return "", nil
+	}
 
 	for i, col := range keys {
 		val := data[col]
@@ -836,7 +1032,7 @@ func (q *QueryBuilder[T]) toUpdateSQL(data map[string]any) (string, []any) {
 func (q *QueryBuilder[T]) toDeleteSQL() (string, []any) {
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
-	sb.WriteString(q.db.dialect.QuoteIdentifier(q.meta.TableName))
+	sb.WriteString(q.db.dialect.QuoteIdentifier(q.getTableName()))
 
 	whereStr, args := q.buildWheres(0)
 	if whereStr != "" {
@@ -851,7 +1047,7 @@ func (q *QueryBuilder[T]) toDeleteSQL() (string, []any) {
 func (q *QueryBuilder[T]) loadRelation(results []T, name string) error {
 	rel := q.getRelation(name)
 	if rel == nil {
-		return fmt.Errorf("orm: relation %q not found on %s", name, q.meta.TableName)
+		return fmt.Errorf("orm: relation %q not found on %s", name, q.getTableName())
 	}
 
 	switch rel.Type {

@@ -44,18 +44,20 @@ func loadHasMany[T any](ctx context.Context, db *DB, owners []T, rel RelationMet
 	for i := 0; i < relatedResults.Len(); i++ {
 		item := relatedResults.Index(i)
 		fkVal := fieldByIndex(item, fkMeta.FieldIndex).Interface()
-		group, exists := groups[fkVal]
+		fkValNorm := normalizeKey(fkVal)
+		group, exists := groups[fkValNorm]
 		if !exists {
 			group = reflect.MakeSlice(reflect.SliceOf(rel.Related), 0, 0)
 		}
-		groups[fkVal] = reflect.Append(group, item)
+		groups[fkValNorm] = reflect.Append(group, item)
 	}
 
 	// Assign groups back to owner relation fields.
 	for i := range owners {
 		v := reflect.ValueOf(&owners[i]).Elem()
 		pkVal := fieldByIndex(v, ownerMeta.PK.FieldIndex).Interface()
-		group, ok := groups[pkVal]
+		pkValNorm := normalizeKey(pkVal)
+		group, ok := groups[pkValNorm]
 		if !ok {
 			continue
 		}
@@ -107,13 +109,15 @@ func loadHasOne[T any](ctx context.Context, db *DB, owners []T, rel RelationMeta
 	for i := 0; i < relatedResults.Len(); i++ {
 		item := relatedResults.Index(i)
 		fkVal := fieldByIndex(item, fkMeta.FieldIndex).Interface()
-		mapping[fkVal] = item
+		fkValNorm := normalizeKey(fkVal)
+		mapping[fkValNorm] = item
 	}
 
 	for i := range owners {
 		v := reflect.ValueOf(&owners[i]).Elem()
 		pkVal := fieldByIndex(v, ownerMeta.PK.FieldIndex).Interface()
-		item, ok := mapping[pkVal]
+		pkValNorm := normalizeKey(pkVal)
+		item, ok := mapping[pkValNorm]
 		if !ok {
 			continue
 		}
@@ -182,13 +186,15 @@ func loadBelongsTo[T any](ctx context.Context, db *DB, owners []T, rel RelationM
 	for i := 0; i < relatedResults.Len(); i++ {
 		item := relatedResults.Index(i)
 		pkVal := fieldByIndex(item, relatedMeta.PK.FieldIndex).Interface()
-		mapping[pkVal] = item
+		pkValNorm := normalizeKey(pkVal)
+		mapping[pkValNorm] = item
 	}
 
 	for i := range owners {
 		v := reflect.ValueOf(&owners[i]).Elem()
 		fkVal := fieldByIndex(v, fkCol.FieldIndex).Interface()
-		item, ok := mapping[fkVal]
+		fkValNorm := normalizeKey(fkVal)
+		item, ok := mapping[fkValNorm]
 		if !ok {
 			continue
 		}
@@ -265,8 +271,10 @@ func loadManyToMany[T any](ctx context.Context, db *DB, owners []T, rel Relation
 		strings.Join(placeholders, ", "),
 	)
 
+	fmt.Printf("MANY-TO-MANY QUERY: %s | ARGS: %v\n", query, ownerIDs)
 	rows, err := db.conn.Query(ctx, query, ownerIDs...)
 	if err != nil {
+		fmt.Printf("MANY-TO-MANY QUERY ERROR: %v\n", err)
 		return err
 	}
 	defer rows.Close()
@@ -316,11 +324,12 @@ func loadManyToMany[T any](ctx context.Context, db *DB, owners []T, rel Relation
 			return err
 		}
 
-		group, exists := groups[ownerID]
+		ownerIDNorm := normalizeKey(ownerID)
+		group, exists := groups[ownerIDNorm]
 		if !exists {
 			group = reflect.MakeSlice(reflect.SliceOf(relatedMeta.Type), 0, 0)
 		}
-		groups[ownerID] = reflect.Append(group, item)
+		groups[ownerIDNorm] = reflect.Append(group, item)
 	}
 	if err := rows.Err(); err != nil {
 		return err
@@ -330,7 +339,8 @@ func loadManyToMany[T any](ctx context.Context, db *DB, owners []T, rel Relation
 	for i := range owners {
 		v := reflect.ValueOf(&owners[i]).Elem()
 		pkVal := fieldByIndex(v, ownerMeta.PK.FieldIndex).Interface()
-		group, ok := groups[pkVal]
+		pkValNorm := normalizeKey(pkVal)
+		group, ok := groups[pkValNorm]
 		if !ok {
 			continue
 		}
@@ -485,17 +495,19 @@ func loadMorphMany[T any](ctx context.Context, db *DB, owners []T, rel RelationM
 	for i := 0; i < relatedResults.Len(); i++ {
 		item := relatedResults.Index(i)
 		idVal := fieldByIndex(item, idMeta.FieldIndex).Interface()
-		group, exists := groups[idVal]
+		idValNorm := normalizeKey(idVal)
+		group, exists := groups[idValNorm]
 		if !exists {
 			group = reflect.MakeSlice(reflect.SliceOf(rel.Related), 0, 0)
 		}
-		groups[idVal] = reflect.Append(group, item)
+		groups[idValNorm] = reflect.Append(group, item)
 	}
 
 	for i := range owners {
 		v := reflect.ValueOf(&owners[i]).Elem()
 		pkVal := fieldByIndex(v, ownerMeta.PK.FieldIndex).Interface()
-		group, ok := groups[pkVal]
+		pkValNorm := normalizeKey(pkVal)
+		group, ok := groups[pkValNorm]
 		if !ok {
 			continue
 		}
@@ -543,30 +555,74 @@ func loadMorphTo[T any](ctx context.Context, db *DB, owners []T, rel RelationMet
 		}
 	}
 
-	// For each type, fetch related models (Simplified: assumes model names match table names or registry)
+	// For each type, fetch related models
 	for t, ids := range typeGroups {
-		// In a real framework, we'd look up the table for type 't'
-		table := toSnakeCase(t) + "s"
-
-		query, args := buildWhereInQuery(db, table, "id", ids)
-		rows, err := db.conn.Query(ctx, query, args...)
-		if err != nil {
+		meta := GetMetaByName(t)
+		if meta == nil {
 			continue
 		}
 
+		query, args := buildWhereInQuery(db, meta.TableName, meta.PK.ColumnName, ids)
+		rows, err := db.conn.Query(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+
+		relatedResultsRaw, err := db.scanRows(rows, meta)
+		if err != nil {
+			return err
+		}
+
+		relatedResults := reflect.ValueOf(relatedResultsRaw)
+		mapping := make(map[any]reflect.Value)
+		for i := 0; i < relatedResults.Len(); i++ {
+			item := relatedResults.Index(i)
+			pkVal := fieldByIndex(item, meta.PK.FieldIndex).Interface()
+			pkValNorm := normalizeKey(pkVal)
+			mapping[pkValNorm] = item
+		}
+
 		// Map results back to owners
-		// This part is complex because T is the owner type, but we need to scan into different types.
-		// For a simplified Astra implementation, we'll skip the actual scan and just mark as loaded if found.
-		// A full implementation would need a registry of types to ModelMeta.
-		_ = rows
+		for i := range owners {
+			v := reflect.ValueOf(&owners[i]).Elem()
+			ownerT := fieldByIndex(v, typeCol.FieldIndex).String()
+			if ownerT != t {
+				continue
+			}
+			ownerIDVal := fieldByIndex(v, idCol.FieldIndex).Interface()
+			ownerIDValNorm := normalizeKey(ownerIDVal)
+			item, ok := mapping[ownerIDValNorm]
+			if !ok {
+				continue
+			}
+
+			relField := v.FieldByName(rel.FieldName)
+			if !relField.IsValid() {
+				continue
+			}
+
+			itemPtr := reflect.New(meta.Type)
+			itemPtr.Elem().Set(item)
+
+			setRelationField(relField, "item", reflect.ValueOf(itemPtr.Interface()))
+			setRelationField(relField, "loaded", reflect.ValueOf(true))
+		}
 	}
 
 	return nil
 }
 
-// setRelationField sets a named unexported field on a relation wrapper struct.
-// relField is the reflect.Value of the HasMany/HasOne/BelongsTo/ManyToMany struct.
+// setRelationField sets a named exported field on a relation wrapper struct.
+// relField is the reflect.Value of the HasMany/HasOne/BelongsTo/ManyToMany/MorphTo struct.
 func setRelationField(relField reflect.Value, name string, val reflect.Value) {
+	switch name {
+	case "items":
+		name = "Items"
+	case "item":
+		name = "Item"
+	case "loaded":
+		name = "Loaded"
+	}
 	f := relField.FieldByName(name)
 	if f.IsValid() && f.CanSet() {
 		f.Set(val)
@@ -578,4 +634,21 @@ func pivotFKs(rel *RelationMeta) (string, string) {
 	ownerFK := rel.FK
 	relatedFK := rel.RelatedKey
 	return ownerFK, relatedFK
+}
+
+// normalizeKey converts integer types to int64 to avoid dynamic type mismatches
+// when scanning synthetic/raw database columns vs model struct fields.
+func normalizeKey(val any) any {
+	if val == nil {
+		return nil
+	}
+	rv := reflect.ValueOf(val)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return rv.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return int64(rv.Uint())
+	default:
+		return val
+	}
 }

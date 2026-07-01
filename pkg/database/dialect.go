@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // Dialect provides database-specific SQL generation
@@ -24,7 +25,17 @@ type PostgresDialect struct{}
 
 func (d PostgresDialect) Name() string                       { return "postgres" }
 func (d PostgresDialect) Placeholder(n int) string           { return fmt.Sprintf("$%d", n) }
-func (d PostgresDialect) QuoteIdentifier(name string) string { return fmt.Sprintf("\"%s\"", name) }
+func (d PostgresDialect) QuoteIdentifier(name string) string {
+	clean := strings.ReplaceAll(name, "\"", "")
+	if strings.Contains(clean, ".") {
+		parts := strings.Split(clean, ".")
+		for i, p := range parts {
+			parts[i] = fmt.Sprintf("\"%s\"", p)
+		}
+		return strings.Join(parts, ".")
+	}
+	return fmt.Sprintf("\"%s\"", clean)
+}
 func (d PostgresDialect) SupportsReturning() bool            { return true }
 func (d PostgresDialect) AutoIncrementDDL() string           { return "SERIAL" }
 func (d PostgresDialect) LimitOffsetSQL(limit, offset int) string {
@@ -47,7 +58,17 @@ type MySQLDialect struct{}
 
 func (d MySQLDialect) Name() string                       { return "mysql" }
 func (d MySQLDialect) Placeholder(n int) string           { return "?" }
-func (d MySQLDialect) QuoteIdentifier(name string) string { return fmt.Sprintf("`%s`", name) }
+func (d MySQLDialect) QuoteIdentifier(name string) string {
+	clean := strings.ReplaceAll(name, "`", "")
+	if strings.Contains(clean, ".") {
+		parts := strings.Split(clean, ".")
+		for i, p := range parts {
+			parts[i] = fmt.Sprintf("`%s`", p)
+		}
+		return strings.Join(parts, ".")
+	}
+	return fmt.Sprintf("`%s`", clean)
+}
 func (d MySQLDialect) SupportsReturning() bool            { return false }
 func (d MySQLDialect) AutoIncrementDDL() string           { return "AUTO_INCREMENT" }
 func (d MySQLDialect) LimitOffsetSQL(limit, offset int) string {
@@ -69,7 +90,17 @@ type SQLiteDialect struct{}
 
 func (d SQLiteDialect) Name() string                       { return "sqlite" }
 func (d SQLiteDialect) Placeholder(n int) string           { return "?" }
-func (d SQLiteDialect) QuoteIdentifier(name string) string { return fmt.Sprintf("`%s`", name) }
+func (d SQLiteDialect) QuoteIdentifier(name string) string {
+	clean := strings.ReplaceAll(name, "`", "")
+	if strings.Contains(clean, ".") {
+		parts := strings.Split(clean, ".")
+		for i, p := range parts {
+			parts[i] = fmt.Sprintf("`%s`", p)
+		}
+		return strings.Join(parts, ".")
+	}
+	return fmt.Sprintf("`%s`", clean)
+}
 func (d SQLiteDialect) SupportsReturning() bool            { return false }
 func (d SQLiteDialect) AutoIncrementDDL() string           { return "INTEGER PRIMARY KEY AUTOINCREMENT" }
 func (d SQLiteDialect) LimitOffsetSQL(limit, offset int) string {

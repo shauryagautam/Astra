@@ -77,6 +77,11 @@ func (db *DB) Dialect() Dialect {
 	return db.dialect
 }
 
+// Auditor returns the configured Auditor instance.
+func (db *DB) Auditor() Auditor {
+	return db.auditor
+}
+
 // Pool returns the underlying *sql.DB connection pool.
 func (db *DB) Pool() *sql.DB {
 	if db.pool != nil {
@@ -160,6 +165,9 @@ func Open(cfg Config) (*DB, error) {
 	if cfg.LogQueries {
 		conn = &loggingConn{inner: conn}
 	}
+	if cfg.SlowQueryThreshold > 0 {
+		conn = &slowQueryConn{inner: conn, threshold: cfg.SlowQueryThreshold}
+	}
 	if cfg.QueryHook != nil {
 		conn = &dashboardConn{inner: conn, hook: cfg.QueryHook}
 	}
@@ -171,6 +179,46 @@ func Open(cfg Config) (*DB, error) {
 		pool:    db,
 	}, nil
 }
+
+// ─── slowQueryConn — slow query detection ─────────────────────────────────────
+
+// slowQueryConn wraps a Connection and emits a slog.Warn when any statement
+// exceeds the configured threshold. A zero threshold disables detection.
+type slowQueryConn struct {
+	inner     Connection
+	threshold time.Duration
+}
+
+func (s *slowQueryConn) Exec(ctx context.Context, sqlStr string, args ...any) (sql.Result, error) {
+	start := time.Now()
+	res, err := s.inner.Exec(ctx, sqlStr, args...)
+	if elapsed := time.Since(start); elapsed >= s.threshold {
+		slog.WarnContext(ctx, "orm: slow query", "sql", sqlStr, "duration", elapsed, "threshold", s.threshold)
+	}
+	return res, err
+}
+
+func (s *slowQueryConn) Query(ctx context.Context, sqlStr string, args ...any) (Rows, error) {
+	start := time.Now()
+	rows, err := s.inner.Query(ctx, sqlStr, args...)
+	if elapsed := time.Since(start); elapsed >= s.threshold {
+		slog.WarnContext(ctx, "orm: slow query", "sql", sqlStr, "duration", elapsed, "threshold", s.threshold)
+	}
+	return rows, err
+}
+
+func (s *slowQueryConn) QueryRow(ctx context.Context, sqlStr string, args ...any) Row {
+	start := time.Now()
+	row := s.inner.QueryRow(ctx, sqlStr, args...)
+	if elapsed := time.Since(start); elapsed >= s.threshold {
+		slog.WarnContext(ctx, "orm: slow query", "sql", sqlStr, "duration", elapsed, "threshold", s.threshold)
+	}
+	return row
+}
+
+func (s *slowQueryConn) Begin(ctx context.Context) (Transaction, error) { return s.inner.Begin(ctx) }
+func (s *slowQueryConn) Close() error                                   { return s.inner.Close() }
+func (s *slowQueryConn) Unwrap() Connection                             { return s.inner }
 
 // Close closes the underlying database pool.
 func (db *DB) Close() error {
@@ -534,12 +582,16 @@ func (t *sqlTx) Begin(ctx context.Context) (Transaction, error) {
 	if _, err := t.Tx.ExecContext(ctx, "SAVEPOINT "+spName); err != nil {
 		return nil, fmt.Errorf("nested transactions failed to create savepoint: %w", err)
 	}
-	return &savepointTx{tx: t.Tx, savepoint: spName}, nil
+	return &savepointTx{tx: t.Tx, savepoint: spName, ctx: ctx}, nil
 }
 
 type savepointTx struct {
 	tx        *sql.Tx
 	savepoint string
+	// ctx is captured at savepoint creation time so that Commit/Rollback
+	// respect any deadline already set on the caller's context rather than
+	// blocking unconditionally on context.Background().
+	ctx context.Context
 }
 
 func (s *savepointTx) Exec(ctx context.Context, sqlStr string, args ...any) (sql.Result, error) {
@@ -564,16 +616,16 @@ func (s *savepointTx) Begin(ctx context.Context) (Transaction, error) {
 	if _, err := s.tx.ExecContext(ctx, "SAVEPOINT "+spName); err != nil {
 		return nil, err
 	}
-	return &savepointTx{tx: s.tx, savepoint: spName}, nil
+	return &savepointTx{tx: s.tx, savepoint: spName, ctx: ctx}, nil
 }
 
 func (s *savepointTx) Commit() error {
-	_, err := s.tx.ExecContext(context.Background(), "RELEASE SAVEPOINT "+s.savepoint)
+	_, err := s.tx.ExecContext(s.ctx, "RELEASE SAVEPOINT "+s.savepoint)
 	return err
 }
 
 func (s *savepointTx) Rollback() error {
-	_, err := s.tx.ExecContext(context.Background(), "ROLLBACK TO SAVEPOINT "+s.savepoint)
+	_, err := s.tx.ExecContext(s.ctx, "ROLLBACK TO SAVEPOINT "+s.savepoint)
 	return err
 }
 
