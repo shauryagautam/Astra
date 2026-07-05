@@ -1,6 +1,6 @@
 # Astra Framework
 
-[**astraframework.appwrite.network**](https://astraframework.appwrite.network/)
+(https://shauryagautam.github.io/astraframework.github.io/)
 
 **A batteries-included, production-grade Go web framework.**
 
