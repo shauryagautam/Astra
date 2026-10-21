@@ -20,7 +20,6 @@ type ViewEngine interface {
 	Render(wr io.Writer, name string, data any) error
 }
 
-
 // i18n
 type Translator interface {
 	T(locale, key string, args ...any) string
@@ -66,12 +65,12 @@ type Validator interface {
 	BindAndValidate(r *http.Request, v any) error
 }
 
-// HealthProvider defines the interface for components that can be health-checked.
-type HealthProvider interface {
+// HealthCheck defines the interface for a named health check.
+type HealthCheck interface {
 	CheckHealth(ctx context.Context) error
 }
 
-// HealthCheckFunc is a function type that implements HealthProvider.
+// HealthCheckFunc adapts a function to HealthCheck.
 type HealthCheckFunc func(context.Context) error
 
 func (f HealthCheckFunc) CheckHealth(ctx context.Context) error {

@@ -26,10 +26,18 @@ type MigrationRecord struct {
 
 // Runner handles running and rolling back migrations.
 type Runner struct {
-	db      *sql.DB
+	db      sqlExecutor
+	pool    *sql.DB
 	dialect database.Dialect
 	dir     string
 	fs      fs.FS
+}
+
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 // NewRunner creates a new migration runner.
@@ -39,6 +47,7 @@ func NewRunner(db *sql.DB, dialect database.Dialect, dir string, fileSystem fs.F
 	}
 	return &Runner{
 		db:      db,
+		pool:    db,
 		dialect: dialect,
 		dir:     dir,
 		fs:      fileSystem,
@@ -127,7 +136,7 @@ func (r *Runner) acquireLock(ctx context.Context) (func(), error) {
 			return nil, fmt.Errorf("another migration is already running (advisory lock held)")
 		}
 		release := func() {
-			_, _ = r.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", lockID)
+			_, _ = r.db.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", lockID)
 		}
 		return release, nil
 
@@ -141,7 +150,7 @@ func (r *Runner) acquireLock(ctx context.Context) (func(), error) {
 			return nil, fmt.Errorf("another migration is already running (GET_LOCK timed out or failed)")
 		}
 		release := func() {
-			_, _ = r.db.ExecContext(ctx, "SELECT RELEASE_LOCK(?)", lockName)
+			_, _ = r.db.ExecContext(context.Background(), "SELECT RELEASE_LOCK(?)", lockName)
 		}
 		return release, nil
 
@@ -153,15 +162,15 @@ func (r *Runner) acquireLock(ctx context.Context) (func(), error) {
 
 // Run executes all pending migrations in order.
 func (r *Runner) Run(ctx context.Context) error {
+	return r.withLock(ctx, func(locked *Runner) error {
+		return locked.runLocked(ctx)
+	})
+}
+
+func (r *Runner) runLocked(ctx context.Context) error {
 	if err := r.Setup(ctx); err != nil {
 		return err
 	}
-
-	release, err := r.acquireLock(ctx)
-	if err != nil {
-		return err
-	}
-	defer release()
 
 	applied, err := r.getApplied(ctx)
 	if err != nil {
@@ -287,15 +296,15 @@ func (r *Runner) Rollback(ctx context.Context) error {
 
 // RollbackN rolls back the last N individual migrations.
 func (r *Runner) RollbackN(ctx context.Context, n int) error {
+	return r.withLock(ctx, func(locked *Runner) error {
+		return locked.rollbackN(ctx, n)
+	})
+}
+
+func (r *Runner) rollbackN(ctx context.Context, n int) error {
 	if err := r.Setup(ctx); err != nil {
 		return err
 	}
-
-	release, err := r.acquireLock(ctx)
-	if err != nil {
-		return err
-	}
-	defer release()
 
 	selectQuery := fmt.Sprintf(
 		"SELECT version FROM schema_migrations ORDER BY id DESC LIMIT %s",
@@ -361,6 +370,33 @@ func (r *Runner) RollbackN(ctx context.Context, n int) error {
 		fmt.Printf("  ✓ Rolled back %s\n", filename)
 	}
 	return nil
+}
+
+// withLock pins PostgreSQL/MySQL migrations to one physical connection.
+// Advisory locks are session-scoped; using *sql.DB directly could otherwise
+// acquire the lock on one pooled connection and execute DDL on another.
+func (r *Runner) withLock(ctx context.Context, fn func(*Runner) error) error {
+	if r.pool == nil || (r.dialect.Name() != "postgres" && r.dialect.Name() != "neon" && r.dialect.Name() != "mysql") {
+		release, err := r.acquireLock(ctx)
+		if err != nil {
+			return err
+		}
+		defer release()
+		return fn(r)
+	}
+	conn, err := r.pool.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("migration: acquire connection: %w", err)
+	}
+	defer conn.Close()
+	locked := *r
+	locked.db = conn
+	release, err := locked.acquireLock(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return fn(&locked)
 }
 
 // Fresh drops all user tables and re-runs all migrations.

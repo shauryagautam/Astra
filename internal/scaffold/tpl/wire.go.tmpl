@@ -13,6 +13,6 @@ import (
 // In Astra, this is the single source of truth for the application graph.
 func InitializeApp() (*engine.App, func(), error) {
 	panic(wire.Build(
-		runtime.ProviderSet,
+		runtime.ComponentSet,
 	))
 }

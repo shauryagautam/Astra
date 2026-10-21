@@ -210,3 +210,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Stop allows Server to be registered directly with engine.App.
+func (s *Server) Stop(ctx context.Context) error {
+	return s.Shutdown(ctx)
+}

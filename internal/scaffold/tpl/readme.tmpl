@@ -2,6 +2,10 @@
 
 Build with the [Astra](https://github.com/shauryagautam/Astra) framework.
 
+{{ if .APIOnly }}This project is configured as an API-only application and serves JSON endpoints.
+{{ else }}This project is configured for HTTP applications and can be extended with browser-facing routes.
+{{ end }}
+
 ## Quickstart
 
 1. **Start Dependencies**
@@ -21,8 +25,12 @@ Build with the [Astra](https://github.com/shauryagautam/Astra) framework.
 
 ## Project Structure
 
-Brief overview of the canonical Astra structure:
-- `app/` - Application logic (Controllers, Models, Jobs)
-- `database/` - Migrations and Seeders
-- `routes/` - Route definitions
-- `config/` - Custom configuration files
+The scaffold is intentionally lightweight:
+- `handler/`, `model/`, and `middleware/` - optional application packages
+- `database/migrations/` - versioned SQL migrations
+- `database/data/` - explicit SQL data sets used by `astra seed`
+- `routes.go` - route registration
+- `main.go` and `wire.go` - composition root and constructor wiring
+
+These are starting points, not runtime conventions. Move or rename them freely;
+the application composition root is the only place where they are connected.

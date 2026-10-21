@@ -1,19 +1,20 @@
 // go:build wireinject
+//go:build wireinject
 // +build wireinject
 
 package astra
 
 import (
-	"net/http"
 	"github.com/google/wire"
 	"github.com/shauryagautam/Astra/pkg/engine"
 	astrahttp "github.com/shauryagautam/Astra/pkg/engine/http"
 	"github.com/shauryagautam/Astra/pkg/engine/runtime"
+	"net/http"
 )
 
 // ServerSet provides the default Astra server and its dependencies.
 var ServerSet = wire.NewSet(
-	runtime.ProviderSet,
+	runtime.ComponentSet,
 	astrahttp.NewRouter,
 	astrahttp.NewServer,
 	wire.Bind(new(http.Handler), new(*astrahttp.Router)),
@@ -27,6 +28,6 @@ func InitializeServer(addr string) (*astrahttp.Server, error) {
 
 // InitializeApp initializes the core application kernel.
 func InitializeApp() (*engine.App, error) {
-	wire.Build(runtime.ProviderSet)
+	wire.Build(runtime.ComponentSet)
 	return nil, nil
 }

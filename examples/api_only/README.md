@@ -7,7 +7,7 @@ This is a high-fidelity, production-grade API implementation demonstration built
 - **Lean REST API**: Minimalist handlers for resource management (CRUD).
 - **Automated Schema Initialization**: Demonstrates `app.OnStart` hooks for database preparation.
 - **Custom Providers**: Shows how to wrap external libraries (like `validate`) into the Astra IoC container.
-- **Postgres Integration**: Native use of the Astra ORM and database providers.
+- **Postgres Integration**: Native use of the Astra ORM and explicit database construction.
 - **Operational Ready**: Pre-configured with Docker Compose and `.env` handling.
 
 ## 🚀 Quickstart
@@ -38,7 +38,7 @@ curl http://localhost:3333/ping
 
 ## 🏗 Key Components
 
-- **`main.go`**: App bootstrapping, provider registration, and lifecycle management.
+- **`main.go`**: App bootstrapping, explicit dependency construction, and lifecycle management.
 - **`routes/`**: Clean route definitions separated from application logic.
 - **`handlers/`**: Request processing logic.
 - **`schema/`**: Type definitions for requests and responses.

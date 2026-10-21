@@ -1,5 +1,5 @@
-// Package testing provides model factories for use in tests and seed data.
-// Factories use a fluent builder API: Set field values, then Make (in-memory)
+// Package test_util provides model fixtures for use in tests and seed data.
+// Fixtures use a fluent builder API: Set field values, then Make (in-memory)
 // or Create (insert into DB).
 package test_util
 
@@ -10,53 +10,53 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shauryagautam/Astra/pkg/database"
 	"github.com/brianvoe/gofakeit/v6"
+	"github.com/shauryagautam/Astra/pkg/database"
 	"github.com/stretchr/testify/require"
 )
 
-// Factory defines an interface for creating models in tests or seeders.
-type Factory[T any] interface {
+// Fixture defines an interface for creating models in tests.
+type Fixture[T any] interface {
 	Create(ctx context.Context, db *database.DB) (*T, error)
 	Make() *T
 }
 
-// BaseFactory provides helper methods for test.
-type BaseFactory struct {
+// TestHelper provides assertion helpers for tests.
+type TestHelper struct {
 	t *testing.T
 }
 
-// NewBaseFactory creates a new BaseFactory.
-func NewBaseFactory(t *testing.T) *BaseFactory {
-	return &BaseFactory{t: t}
+// NewTestHelper creates a test helper.
+func NewTestHelper(t *testing.T) *TestHelper {
+	return &TestHelper{t: t}
 }
 
 // RequireNoError asserts that err is nil.
-func (f *BaseFactory) RequireNoError(err error) {
+func (f *TestHelper) RequireNoError(err error) {
 	require.NoError(f.t, err)
 }
 
-// ─── Fluent Factory Builder ───────────────────────────────────────────────────
+// FixtureBuilder is a fluent builder for test records.
 
-type ModelFactory[T any] struct {
+type FixtureBuilder[T any] struct {
 	fields    map[string]func() any // field name (lowercase) -> value generator
 	count     int
 	tableName string
 	useFakes  bool
 }
 
-// NewFactory creates a new ModelFactory[T] for the given database table.
+// NewFixtureBuilder creates a builder for the given database table.
 //
 // Example:
 //
-//	factory := test_util.NewFactory[User]("users").
+//	fixture := test_util.NewFixtureBuilder[User]("users").
 //	    Set("name", faker.Name()).
 //	    Set("email", faker.Email()).
 //	    Count(10)
 //
-//	users := factory.CreateMany(ctx, db)
-func NewFactory[T any](table string) *ModelFactory[T] {
-	return &ModelFactory[T]{
+//	users := fixture.CreateMany(ctx, db)
+func NewFixtureBuilder[T any](table string) *FixtureBuilder[T] {
+	return &FixtureBuilder[T]{
 		fields:    make(map[string]func() any),
 		count:     1,
 		tableName: table,
@@ -65,37 +65,37 @@ func NewFactory[T any](table string) *ModelFactory[T] {
 
 // Set registers a fixed value for the given field name.
 // The field name should match the struct's db/json tag name.
-func (f *ModelFactory[T]) Set(field string, value any) *ModelFactory[T] {
+func (f *FixtureBuilder[T]) Set(field string, value any) *FixtureBuilder[T] {
 	f.fields[field] = func() any { return value }
 	return f
 }
 
 // SetFunc registers a generator function for the given field.
 // The function is called once per created instance, enabling unique values.
-func (f *ModelFactory[T]) SetFunc(field string, fn func() any) *ModelFactory[T] {
+func (f *FixtureBuilder[T]) SetFunc(field string, fn func() any) *FixtureBuilder[T] {
 	f.fields[field] = fn
 	return f
 }
 
 // Count sets the number of instances to create/make.
-func (f *ModelFactory[T]) Count(n int) *ModelFactory[T] {
+func (f *FixtureBuilder[T]) Count(n int) *FixtureBuilder[T] {
 	f.count = n
 	return f
 }
 
 // WithFakes enables automatic fake data generation for unassigned fields based on struct tags.
-func (f *ModelFactory[T]) WithFakes() *ModelFactory[T] {
+func (f *FixtureBuilder[T]) WithFakes() *FixtureBuilder[T] {
 	f.useFakes = true
 	return f
 }
 
 // Make returns a single in-memory instance (no DB call).
-func (f *ModelFactory[T]) Make() *T {
+func (f *FixtureBuilder[T]) Make() *T {
 	return applyFields[T](f.currentValues())
 }
 
 // MakeMany returns count in-memory instances.
-func (f *ModelFactory[T]) MakeMany() []*T {
+func (f *FixtureBuilder[T]) MakeMany() []*T {
 	results := make([]*T, f.count)
 	for i := range results {
 		results[i] = applyFields[T](f.currentValues())
@@ -104,19 +104,19 @@ func (f *ModelFactory[T]) MakeMany() []*T {
 }
 
 // Create inserts a single instance into the database and returns the created record.
-func (f *ModelFactory[T]) Create(ctx context.Context, db *database.DB) (*T, error) {
+func (f *FixtureBuilder[T]) Create(ctx context.Context, db *database.DB) (*T, error) {
 	model := f.Make()
 	return database.NewQueryBuilder[T](db).Table(f.tableName).Create(model, ctx)
 }
 
 // CreateMany inserts count instances into the database and returns all created records.
-func (f *ModelFactory[T]) CreateMany(ctx context.Context, db *database.DB) ([]*T, error) {
+func (f *FixtureBuilder[T]) CreateMany(ctx context.Context, db *database.DB) ([]*T, error) {
 	results := make([]*T, 0, f.count)
 	for i := 0; i < f.count; i++ {
 		model := f.Make()
 		rec, err := database.NewQueryBuilder[T](db).Table(f.tableName).Create(model, ctx)
 		if err != nil {
-			return results, fmt.Errorf("factory.CreateMany: failed on record %d: %w", i, err)
+			return results, fmt.Errorf("fixture CreateMany: failed on record %d: %w", i, err)
 		}
 		results = append(results, rec)
 	}
@@ -124,7 +124,7 @@ func (f *ModelFactory[T]) CreateMany(ctx context.Context, db *database.DB) ([]*T
 }
 
 // currentValues evaluates all registered generators and returns a snapshot.
-func (f *ModelFactory[T]) currentValues() map[string]any {
+func (f *FixtureBuilder[T]) currentValues() map[string]any {
 	out := make(map[string]any, len(f.fields))
 
 	// If fakes enabled, prepopulate with gofakeit

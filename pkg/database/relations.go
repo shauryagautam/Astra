@@ -271,10 +271,8 @@ func loadManyToMany[T any](ctx context.Context, db *DB, owners []T, rel Relation
 		strings.Join(placeholders, ", "),
 	)
 
-	fmt.Printf("MANY-TO-MANY QUERY: %s | ARGS: %v\n", query, ownerIDs)
 	rows, err := db.conn.Query(ctx, query, ownerIDs...)
 	if err != nil {
-		fmt.Printf("MANY-TO-MANY QUERY ERROR: %v\n", err)
 		return err
 	}
 	defer rows.Close()

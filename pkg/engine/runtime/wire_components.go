@@ -5,19 +5,19 @@ import (
 	"os"
 
 	"github.com/google/wire"
+	"github.com/shauryagautam/Astra/pkg/database"
 	"github.com/shauryagautam/Astra/pkg/engine"
 	"github.com/shauryagautam/Astra/pkg/engine/config"
-	"github.com/shauryagautam/Astra/pkg/database"
 )
 
-// ProviderSet is a Wire provider set that includes all core framework services.
-var ProviderSet = wire.NewSet(
+// ComponentSet is the Wire set for core framework dependencies.
+var ComponentSet = wire.NewSet(
 	// Core Dependencies
 	ProvideEnv,
 	ProvideAstraConfig,
 	ProvideLogger,
 
-	// App Container (Lifecycle Manager)
+	// Application lifecycle manager.
 	engine.New,
 
 	// Authentication (OAuth2)
@@ -34,7 +34,6 @@ func ProvideAstraConfig(env *config.Config) *config.AstraConfig {
 	return config.LoadFromEnv(env)
 }
 
-
 // ProvideLogger provides the default application logger.
 func ProvideLogger(cfg *config.AstraConfig) *slog.Logger {
 	level := slog.LevelInfo
@@ -44,7 +43,7 @@ func ProvideLogger(cfg *config.AstraConfig) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 }
 
-// DataLayerSet provides database dependencies.
+// DataLayerSet provides database constructors.
 var DataLayerSet = wire.NewSet(
 	database.Open,
 )

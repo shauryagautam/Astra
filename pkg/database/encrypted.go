@@ -24,7 +24,7 @@ var encryptionKey []byte
 var errNoKey = errors.New("orm: APP_KEY is not initialized; call orm.InitializeEncryption(key) during boot")
 
 // InitializeEncryption derives the 32-byte AES key from the application key.
-// This should be called during application startup (e.g., by the ORM provider).
+// This should be called during application startup, after the database is constructed.
 func InitializeEncryption(appKey string) error {
 	if appKey == "" {
 		return fmt.Errorf("orm: cannot initialize encryption with an empty key")

@@ -8,7 +8,6 @@ import (
 	"github.com/shauryagautam/Astra/pkg/engine"
 	"github.com/shauryagautam/Astra/pkg/engine/config"
 	"github.com/shauryagautam/Astra/pkg/engine/http"
-	"github.com/shauryagautam/Astra/pkg/engine/providers"
 	"github.com/shauryagautam/Astra/pkg/session"
 
 	"ssr_auth/routes"
@@ -28,12 +27,6 @@ func main() {
 
 	// Create cookie store for sessions
 	store := session.NewCookieStore([]byte("supersecret32bytesminimum1234567"))
-
-	// Register session provider for auth state and flash messages
-	app.RegisterProvider(providers.NewSessionProvider(store))
-
-	// Register storage provider
-	app.RegisterProvider(providers.NewStorageProvider())
 
 	// Configure Template Engine for SSR Views
 	viewEngine := http.NewTemplateEngine("views")
@@ -56,15 +49,9 @@ func main() {
 
 	routes.Register(router, app)
 
-	app.RegisterProvider(providers.NewHTTPProvider(router))
-
-	// Start server (simplified bootstrap)
-	go func() {
-		log.Println("Starting SSR Auth Server on :3333")
-		if err := nethttp.ListenAndServe(":3333", router); err != nil {
-			log.Fatalf("server failed: %v", err)
-		}
-	}()
+	if err := app.RegisterComponent(http.NewServer(":3333", router, cfg.App.MaxBodySize)); err != nil {
+		log.Fatalf("register server: %v", err)
+	}
 
 	if err := app.Run(); err != nil {
 		log.Fatalf("App failed: %v", err)

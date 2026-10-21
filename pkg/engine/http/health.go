@@ -9,7 +9,7 @@ import (
 
 // HealthHandler returns a sophisticated health check handler that runs all registered probes.
 // It is fully decoupled from the kernel and accepts an explicit health check registry.
-func HealthHandler(checks map[string]engine.HealthProvider) HandlerFunc {
+func HealthHandler(checks map[string]engine.HealthCheck) HandlerFunc {
 	return func(c *Context) error {
 		if len(checks) == 0 {
 			return c.JSON(map[string]string{"status": "ok"}, http.StatusOK)
@@ -22,7 +22,7 @@ func HealthHandler(checks map[string]engine.HealthProvider) HandlerFunc {
 
 		for name, check := range checks {
 			wg.Add(1)
-			go func(name string, hp engine.HealthProvider) {
+			go func(name string, hp engine.HealthCheck) {
 				defer wg.Done()
 				err := hp.CheckHealth(c.Ctx())
 				mu.Lock()

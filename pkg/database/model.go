@@ -2,7 +2,15 @@ package database
 
 import "time"
 
-// Model is a base struct for all Astra models, providing ID and Timestamps.
+// Model is an explicit embeddable set of common persistence fields. Embedding
+// it is optional; a model may define its own fields and metadata instead.
+//
+// The orm tag controls persistence metadata:
+//   - primary_key marks the identifier.
+//   - auto_increment excludes a value on insert.
+//   - soft_delete enables Delete as an UPDATE that sets DeletedAt.
+//   - guarded excludes a field from Create and map-based Update.
+//   - column:name overrides the Go-name-to-column mapping.
 type Model struct {
 	ID        uint       `orm:"primary_key;auto_increment" json:"id" db:"id"`
 	CreatedAt time.Time  `json:"created_at" db:"created_at"`
@@ -60,4 +68,3 @@ type MorphMany[T any] struct {
 	Relation[T]
 	Items []T
 }
-

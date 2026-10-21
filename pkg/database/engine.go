@@ -49,7 +49,6 @@ func TenantIDFromContext(ctx context.Context) (any, bool) {
 //	}
 type QueryHook func(sql string, args []any, duration time.Duration)
 
-
 // DB wraps a database connection
 type DB struct {
 	conn    Connection
@@ -103,6 +102,36 @@ func (db *DB) Pool() *sql.DB {
 	return nil
 }
 
+// Stats returns a snapshot of the underlying connection-pool statistics.
+func (db *DB) Stats() sql.DBStats {
+	if pool := db.Pool(); pool != nil {
+		return pool.Stats()
+	}
+	return sql.DBStats{}
+}
+
+// PingContext verifies that the database is reachable using ctx.
+func (db *DB) PingContext(ctx context.Context) error {
+	if pool := db.Pool(); pool != nil {
+		return pool.PingContext(ctx)
+	}
+	return nil
+}
+
+// SetMaxOpenConns configures the underlying pool when DB owns a sql.DB.
+func (db *DB) SetMaxOpenConns(n int) {
+	if pool := db.Pool(); pool != nil {
+		pool.SetMaxOpenConns(n)
+	}
+}
+
+// SetMaxIdleConns configures the underlying pool when DB owns a sql.DB.
+func (db *DB) SetMaxIdleConns(n int) {
+	if pool := db.Pool(); pool != nil {
+		pool.SetMaxIdleConns(n)
+	}
+}
+
 // Schema returns a schema builder
 func (db *DB) Schema() *schema.Builder {
 	return &schema.Builder{
@@ -129,9 +158,18 @@ func Query[T any](db *DB, ctx ...context.Context) *QueryBuilder[T] {
 	return qb
 }
 
+// QueryContext is the context-first form of Query and is convenient at call
+// sites that consistently propagate request contexts.
+func QueryContext[T any](ctx context.Context, db *DB) *QueryBuilder[T] {
+	return Query[T](db, ctx)
+}
+
 // Open establishes a database connection and returns an ORM instance
 func Open(cfg Config) (*DB, error) {
-	dialect, driverName := ResolveDialect(cfg.Driver)
+	dialect, driverName, err := resolveDialect(cfg.Driver)
+	if err != nil {
+		return nil, err
+	}
 
 	db, err := sql.Open(driverName, cfg.DSN)
 	if err != nil {
@@ -152,6 +190,7 @@ func Open(cfg Config) (*DB, error) {
 	}
 
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 
@@ -394,7 +433,7 @@ func (r *RawQuery[T]) Scan(dest any, ctx ...context.Context) error {
 	if len(ctx) > 0 {
 		c = ctx[0]
 	}
-	rows, err := r.db.conn.Query(c, r.sql, r.args...)
+	rows, err := r.db.Query(c, r.sql, r.args...)
 	if err != nil {
 		return fmt.Errorf("orm: raw query: %w", err)
 	}
@@ -412,7 +451,7 @@ func (r *RawQuery[T]) ScanOne(dest any, ctx ...context.Context) error {
 	if len(ctx) > 0 {
 		c = ctx[0]
 	}
-	rows, err := r.db.conn.Query(c, r.sql, r.args...)
+	rows, err := r.db.Query(c, r.sql, r.args...)
 	if err != nil {
 		return fmt.Errorf("orm: raw query: %w", err)
 	}
@@ -424,7 +463,7 @@ func (r *RawQuery[T]) Rows(ctx ...context.Context) (Rows, error) {
 	if len(ctx) > 0 {
 		c = ctx[0]
 	}
-	return r.db.conn.Query(c, r.sql, r.args...)
+	return r.db.Query(c, r.sql, r.args...)
 }
 
 // All returns an iterator over the raw query results, scanning into T.
@@ -434,7 +473,7 @@ func (r *RawQuery[T]) All(ctx ...context.Context) iter.Seq2[*T, error] {
 		if len(ctx) > 0 {
 			c = ctx[0]
 		}
-		rows, err := r.db.conn.Query(c, r.sql, r.args...)
+		rows, err := r.db.Query(c, r.sql, r.args...)
 		if err != nil {
 			yield(nil, err)
 			return
@@ -446,7 +485,7 @@ func (r *RawQuery[T]) All(ctx ...context.Context) iter.Seq2[*T, error] {
 		if t.Kind() == reflect.Ptr {
 			t = t.Elem()
 		}
-		
+
 		// If T is a struct, use model meta for mapping columns
 		if t.Kind() == reflect.Struct {
 			meta := GetMeta(t)
@@ -733,4 +772,3 @@ func (d *dashboardConn) Begin(ctx context.Context) (Transaction, error) {
 func (d *dashboardConn) Close() error {
 	return d.inner.Close()
 }
-

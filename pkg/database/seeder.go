@@ -1,89 +1,92 @@
-// Package database provides the seeder infrastructure for populating
-// the database with test or production seed data.
+// Package database provides explicit data-loading infrastructure for populating
+// a database with test or production data.
 package database
 
 import (
 	"context"
 	"fmt"
 	"sort"
-
+	"sync"
 )
 
-var (
-	// DefaultRunner is the global seeder runner used by the CLI.
-	DefaultRunner = NewSeederRunner()
-)
-
-// Register adds one or more seeders to the default global runner.
-func Register(seeders ...Seeder) {
-	DefaultRunner.Register(seeders...)
-}
-
-// Seeder defines the interface that all seeders must implement.
-type Seeder interface {
-	// Name returns the unique name of this seeder (e.g. "01_users").
+// DataSet defines one explicit data-loading step. A DataSet has no package
+// global registration; construct a Runner and register it at the composition
+// root.
+type DataSet interface {
 	Name() string
-	// Run executes the seeder, inserting or upserting seed data.
 	Run(ctx context.Context, db *DB) error
 }
 
-// SeederRunner manages and executes registered seeders.
-type SeederRunner struct {
-	seeders []Seeder
-	index   map[string]Seeder
+// Runner manages and executes explicitly registered data sets.
+type Runner struct {
+	mu      sync.RWMutex
+	entries []DataSet
+	index   map[string]DataSet
 }
 
-// NewSeederRunner creates a new SeederRunner.
-func NewSeederRunner() *SeederRunner {
-	return &SeederRunner{
-		index: make(map[string]Seeder),
+// NewRunner creates an explicit data runner.
+func NewRunner() *Runner {
+	return &Runner{
+		index: make(map[string]DataSet),
 	}
 }
 
-// Register adds one or more seeders to the runner in order.
-func (r *SeederRunner) Register(seeders ...Seeder) {
-	for _, s := range seeders {
+// Register adds one or more data sets to the runner in order.
+func (r *Runner) Register(entries ...DataSet) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, s := range entries {
+		if s == nil {
+			continue
+		}
 		if _, exists := r.index[s.Name()]; !exists {
-			r.seeders = append(r.seeders, s)
+			r.entries = append(r.entries, s)
 			r.index[s.Name()] = s
 		}
 	}
 }
 
-// Run executes all registered seeders in the order they were registered.
-func (r *SeederRunner) Run(ctx context.Context, db *DB) error {
-	if len(r.seeders) == 0 {
-		fmt.Println("  No seeders registered.")
+// Run executes all registered data sets in registration order.
+func (r *Runner) Run(ctx context.Context, db *DB) error {
+	r.mu.RLock()
+	entries := append([]DataSet(nil), r.entries...)
+	r.mu.RUnlock()
+	if len(entries) == 0 {
+		fmt.Println("  No data sets registered.")
 		return nil
 	}
 
-	for _, s := range r.seeders {
-		fmt.Printf("  Seeding: %s\n", s.Name())
+	for _, s := range entries {
+		fmt.Printf("  Loading data: %s\n", s.Name())
 		if err := s.Run(ctx, db); err != nil {
-			return fmt.Errorf("seeder %q failed: %w", s.Name(), err)
+			return fmt.Errorf("data set %q failed: %w", s.Name(), err)
 		}
-		fmt.Printf("  ✓ Done:   %s\n", s.Name())
+		fmt.Printf("  ✓ Done:       %s\n", s.Name())
 	}
 	return nil
 }
 
-// RunByName runs a specific seeder by its registered name.
-func (r *SeederRunner) RunByName(ctx context.Context, db *DB, name string) error {
+// RunByName runs a specific data set by name.
+func (r *Runner) RunByName(ctx context.Context, db *DB, name string) error {
+	r.mu.RLock()
 	s, ok := r.index[name]
+	r.mu.RUnlock()
 	if !ok {
 		available := r.Names()
-		return fmt.Errorf("seeder %q not found. Available: %v", name, available)
+		return fmt.Errorf("data set %q not found. Available: %v", name, available)
 	}
-	fmt.Printf("  Seeding: %s\n", s.Name())
+	fmt.Printf("  Loading data: %s\n", s.Name())
 	if err := s.Run(ctx, db); err != nil {
-		return fmt.Errorf("seeder %q failed: %w", name, err)
+		return fmt.Errorf("data set %q failed: %w", name, err)
 	}
-	fmt.Printf("  ✓ Done:   %s\n", s.Name())
+	fmt.Printf("  ✓ Done:       %s\n", s.Name())
 	return nil
 }
 
-// Names returns all registered seeder names, sorted alphabetically.
-func (r *SeederRunner) Names() []string {
+// Names returns all registered data set names, sorted alphabetically.
+func (r *Runner) Names() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	names := make([]string, 0, len(r.index))
 	for k := range r.index {
 		names = append(names, k)

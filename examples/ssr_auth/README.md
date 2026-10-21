@@ -40,7 +40,7 @@ curl http://localhost:3333/
 
 - **`views/`**: HTML templates organized by layout and component.
 - **`routes/`**: Route definitions including authentication middleware wrapping.
-- **`main.go`**: Bootstrapping session providers, template engines, and the HTTP router.
+- **`main.go`**: Bootstrapping the session store, template engine, and HTTP router.
 - **`handler/`**: Controllers that manage session state and render views.
 
 ---

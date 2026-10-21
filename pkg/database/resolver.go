@@ -1,13 +1,6 @@
 package database
 
-// AttachmentResolver allows the ORM to resolve attachment URLs
-// without depending directly on the storage package.
-var AttachmentResolver func(disk, path string) (string, error)
-
-// SetAttachmentResolver sets the global attachment resolver.
-func SetAttachmentResolver(fn func(disk, path string) (string, error)) {
-	AttachmentResolver = fn
-}
+import "fmt"
 
 // ResolveDialect returns the appropriate dialect and driver name for a given connection string.
 func ResolveDialect(driver string) (Dialect, string) {
@@ -22,5 +15,23 @@ func ResolveDialect(driver string) (Dialect, string) {
 		return SQLiteDialect{}, "sqlite"
 	default:
 		return PostgresDialect{}, "pgx"
+	}
+}
+
+// resolveDialect validates a driver for connection creation. ResolveDialect is
+// retained for compatibility with callers that intentionally use the legacy
+// postgres default.
+func resolveDialect(driver string) (Dialect, string, error) {
+	switch driver {
+	case "", "postgres", "postgresql":
+		return PostgresDialect{}, "pgx", nil
+	case "neon":
+		return NeonDialect{}, "pgx", nil
+	case "mysql":
+		return MySQLDialect{}, "mysql", nil
+	case "sqlite", "sqlite3":
+		return SQLiteDialect{}, "sqlite", nil
+	default:
+		return nil, "", fmt.Errorf("orm: unsupported database driver %q", driver)
 	}
 }

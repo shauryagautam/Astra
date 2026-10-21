@@ -6,10 +6,11 @@ all: build
 
 build:
 	@echo "Building..."
-	@go build -o bin/$(APP_NAME) main.go
+	@mkdir -p bin
+	@go build -o bin/$(APP_NAME) .
 
 run:
-	@go run main.go
+	@go run .
 
 dev:
 	@astra dev
@@ -27,11 +28,12 @@ setup:
 	@echo "Setting up dependencies..."
 	@go mod tidy
 	@docker-compose up -d
+	@$(MAKE) migrate-up
 
 migrate-up:
 	@echo "Running migrations..."
-	@go run main.go migrate up
+	@go run . migrate up
 
 migrate-down:
 	@echo "Reverting migrations..."
-	@go run main.go migrate down
+	@go run . migrate down

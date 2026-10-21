@@ -1,7 +1,7 @@
 // Package http provides HTTP transport utilities for the Astra framework.
 //
 // In addition to the inbound-traffic helpers (router, middleware, context),
-// this file adds a resilient outbound client factory that mirrors the same
+// this file adds a resilient outbound client constructor that mirrors the same
 // levels of observability and fault-tolerance applied to incoming requests:
 //
 //   - Distributed trace headers (W3C TraceContext + Baggage) are injected on
@@ -106,7 +106,7 @@ func WithTracer(t trace.Tracer) ClientOption {
 	return func(c *clientConfig) { c.tracer = t }
 }
 
-// ─── Factory ─────────────────────────────────────────────────────────────────
+// ─── Constructor helpers ──────────────────────────────────────────────────────
 
 // NewResilientClient returns a *http.Client pre-configured with a two-layer
 // RoundTripper middleware chain:

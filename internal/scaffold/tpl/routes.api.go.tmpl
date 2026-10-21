@@ -1,10 +1,10 @@
-package routes
+package main
 
 import (
 	"github.com/shauryagautam/Astra/pkg/engine/http"
 )
 
-func Register(r *http.Router) {
+func RegisterRoutes(r *http.Router) {
 	// Apply secure headers by default based on the application environment
 	isProd := r.Config != nil && r.Config.App.Environment == "production"
 	r.Use(http.SecureHeaders(isProd))
@@ -16,6 +16,9 @@ func Register(r *http.Router) {
 		return c.JSON(map[string]string{"status": "READY"}, 200)
 	})
 
+	{{ if .APIOnly }}// This scaffold exposes JSON endpoints only.
+	{{ else }}// Add browser-facing routes and middleware here.
+	{{ end }}
 	// Add your routes here
 	// r.Get("/", "HomeController@Index")
 }

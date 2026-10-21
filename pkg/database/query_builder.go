@@ -32,6 +32,16 @@ type QueryBuilder[T any] struct {
 	err               error
 }
 
+func (q *QueryBuilder[T]) useContext(ctx []context.Context) {
+	if len(ctx) == 0 || ctx[0] == nil {
+		return
+	}
+	q.ctx = ctx[0]
+	if txDB, ok := FromContext(q.ctx); ok {
+		q.db = txDB
+	}
+}
+
 var safeOperators = map[string]bool{
 	"=":           true,
 	"!=":          true,
@@ -221,11 +231,17 @@ func (q *QueryBuilder[T]) OrderBy(column, direction string) *QueryBuilder[T] {
 }
 
 func (q *QueryBuilder[T]) Limit(n int) *QueryBuilder[T] {
+	if n < 0 && q.err == nil {
+		q.err = fmt.Errorf("orm: limit must not be negative")
+	}
 	q.limit = n
 	return q
 }
 
 func (q *QueryBuilder[T]) Offset(n int) *QueryBuilder[T] {
+	if n < 0 && q.err == nil {
+		q.err = fmt.Errorf("orm: offset must not be negative")
+	}
 	q.offset = n
 	return q
 }
@@ -247,6 +263,10 @@ func (q *QueryBuilder[T]) Scope(fn func(*QueryBuilder[T]) *QueryBuilder[T]) *Que
 // Table overrides the table name for this query without mutating the shared
 // ModelMeta cache (which would cause a data race with concurrent queries).
 func (q *QueryBuilder[T]) Table(name string) *QueryBuilder[T] {
+	if q.err == nil && !isValidIdentifier(name) {
+		q.err = fmt.Errorf("orm: invalid table name %q", name)
+		return q
+	}
 	q.tableNameOverride = name
 	return q
 }
@@ -277,9 +297,7 @@ func (q *QueryBuilder[T]) Get(ctx ...context.Context) ([]T, error) {
 	if q.err != nil {
 		return nil, q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q = q.ApplyScopes()
 
 	sqlStr, args := q.ToSQL()
@@ -322,9 +340,7 @@ func (q *QueryBuilder[T]) All(ctx ...context.Context) iter.Seq2[*T, error] {
 			yield(nil, q.err)
 			return
 		}
-		if len(ctx) > 0 {
-			q.ctx = ctx[0]
-		}
+		q.useContext(ctx)
 		q = q.ApplyScopes()
 
 		sqlStr, args := q.ToSQL()
@@ -438,9 +454,7 @@ func (q *QueryBuilder[T]) Count(ctx ...context.Context) (int64, error) {
 	if q.err != nil {
 		return 0, q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q = q.ApplyScopes()
 
 	oldLimit, oldOffset := q.limit, q.offset
@@ -465,9 +479,7 @@ func (q *QueryBuilder[T]) Pluck(column string, ctx ...context.Context) ([]any, e
 	if !isValidIdentifier(column) {
 		return nil, fmt.Errorf("orm: invalid column name %q", column)
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q = q.ApplyScopes()
 
 	var sb strings.Builder
@@ -503,6 +515,12 @@ func (q *QueryBuilder[T]) Pluck(column string, ctx ...context.Context) ([]any, e
 }
 
 func (q *QueryBuilder[T]) Paginate(page, perPage int, ctx ...context.Context) (*PaginationResult[T], error) {
+	if page < 1 {
+		return nil, fmt.Errorf("orm: page must be greater than zero")
+	}
+	if perPage < 1 {
+		return nil, fmt.Errorf("orm: per-page must be greater than zero")
+	}
 	total, err := q.Count(ctx...)
 	if err != nil {
 		return nil, err
@@ -598,7 +616,7 @@ func (q *QueryBuilder[T]) CursorPaginate(ctx context.Context, column, cursor str
 			// Fallback to primary key if column not found
 			fieldVal = fieldByIndex(v, q.meta.PK.FieldIndex).Interface()
 		}
-		
+
 		cursorData, _ := json.Marshal(map[string]any{column: fieldVal})
 		nextCursor = base64.StdEncoding.EncodeToString(cursorData)
 	}
@@ -616,9 +634,7 @@ func (q *QueryBuilder[T]) Create(model *T, ctx ...context.Context) (*T, error) {
 	if q.err != nil {
 		return nil, q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 
 	if err := callBeforeCreate(q.ctx, q.db, model); err != nil {
 		return nil, err
@@ -672,9 +688,7 @@ func (q *QueryBuilder[T]) Update(data map[string]any, ctx ...context.Context) er
 	if q.err != nil {
 		return q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q = q.ApplyScopes()
 	sqlStr, args := q.toUpdateSQL(data)
 	if sqlStr == "" {
@@ -688,9 +702,7 @@ func (q *QueryBuilder[T]) Save(model *T, ctx ...context.Context) error {
 	if q.err != nil {
 		return q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 
 	if err := callBeforeUpdate(q.ctx, q.db, model); err != nil {
 		return err
@@ -722,9 +734,7 @@ func (q *QueryBuilder[T]) Delete(ctx ...context.Context) error {
 	if q.err != nil {
 		return q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q = q.ApplyScopes()
 	if q.meta.HasSoftDel {
 		return q.Update(map[string]any{"deleted_at": time.Now()}, q.ctx)
@@ -738,9 +748,7 @@ func (q *QueryBuilder[T]) ForceDelete(ctx ...context.Context) error {
 	if q.err != nil {
 		return q.err
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q = q.ApplyScopes()
 	sqlStr, args := q.toDeleteSQL()
 	_, err := q.db.conn.Exec(q.ctx, sqlStr, args...)
@@ -754,9 +762,7 @@ func (q *QueryBuilder[T]) Restore(ctx ...context.Context) error {
 	if !q.meta.HasSoftDel {
 		return fmt.Errorf("orm: model %s does not support soft delete", q.meta.TableName)
 	}
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	q.withTrashed = true
 	return q.Update(map[string]any{"deleted_at": nil}, q.ctx)
 }
@@ -764,9 +770,7 @@ func (q *QueryBuilder[T]) Restore(ctx ...context.Context) error {
 // ─── Pivot Operations ─────────────────────────────────────────────────────────
 
 func (q *QueryBuilder[T]) Attach(relation string, ownerID uint, relatedIDs []uint, ctx ...context.Context) error {
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	rel := q.getRelation(relation)
 	if rel == nil || rel.Type != "many_to_many" {
 		return fmt.Errorf("orm: relation %s is not many_to_many", relation)
@@ -775,9 +779,7 @@ func (q *QueryBuilder[T]) Attach(relation string, ownerID uint, relatedIDs []uin
 }
 
 func (q *QueryBuilder[T]) Detach(relation string, ownerID uint, relatedIDs []uint, ctx ...context.Context) error {
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	rel := q.getRelation(relation)
 	if rel == nil || rel.Type != "many_to_many" {
 		return fmt.Errorf("orm: relation %s is not many_to_many", relation)
@@ -786,9 +788,7 @@ func (q *QueryBuilder[T]) Detach(relation string, ownerID uint, relatedIDs []uin
 }
 
 func (q *QueryBuilder[T]) Sync(relation string, ownerID uint, relatedIDs []uint, ctx ...context.Context) error {
-	if len(ctx) > 0 {
-		q.ctx = ctx[0]
-	}
+	q.useContext(ctx)
 	rel := q.getRelation(relation)
 	if rel == nil || rel.Type != "many_to_many" {
 		return fmt.Errorf("orm: relation %s is not many_to_many", relation)

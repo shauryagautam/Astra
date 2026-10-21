@@ -1,32 +1,76 @@
 package main
 
 import (
-	"log"
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
 
+	"github.com/shauryagautam/Astra/pkg/database"
+	"github.com/shauryagautam/Astra/pkg/database/migration"
+	"github.com/shauryagautam/Astra/pkg/engine/config"
 	"github.com/shauryagautam/Astra/pkg/engine/http"
-	"github.com/shauryagautam/Astra/pkg/engine/providers"
-	"{{.AppName}}/internal/routes"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		if err := runMigrationCommand(os.Args[2:]); err != nil {
+			slog.Error("migration failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	app, cleanup, err := InitializeApp()
 	if err != nil {
-		log.Fatalf("Failed to initialize app: %v", err)
+		slog.Error("initialize application", "error", err)
+		os.Exit(1)
 	}
 	defer cleanup()
 
-	// Initialize HTTP Router
 	r := http.NewRouter(app.Config(), app.Logger())
-
-	// Initialize Routes
-	routes.Register(r)
-
-	// Register Core Providers (Database, HTTP Server)
-	app.RegisterProvider(&providers.DatabaseProvider{})
-	app.RegisterProvider(providers.NewHTTPProvider(r))
-
-	// Start the Application Kernel
+	RegisterRoutes(r)
+	addr := fmt.Sprintf("%s:%d", app.Config().App.Host, app.Config().App.Port)
+	if app.Config().App.Host == "" && app.Config().App.Port == 0 {
+		addr = ":8080"
+	}
+	if err := app.RegisterComponent(http.NewServer(addr, r, app.Config().App.MaxBodySize)); err != nil {
+		slog.Error("register HTTP server", "error", err)
+		os.Exit(1)
+	}
 	if err := app.Start(); err != nil {
-		log.Fatalf("App failed: %v", err)
+		slog.Error("application failed", "error", err)
+		os.Exit(1)
+	}
+}
+
+func runMigrationCommand(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: %s migrate <up|down>", os.Args[0])
+	}
+
+	rawConfig, err := config.Load(".env")
+	if err != nil {
+		return err
+	}
+	driver := rawConfig.String("DB_DRIVER", rawConfig.String("DB_CONNECTION", "postgres"))
+	db, err := database.Open(database.Config{
+		Driver: driver,
+		DSN: rawConfig.String("DB_DSN", rawConfig.String("DATABASE_URL", "")),
+	})
+	if err != nil {
+		return err
+	}
+	defer db.Pool().Close()
+
+	dialect, _ := database.ResolveDialect(driver)
+	runner := migration.NewRunner(db.Pool(), dialect, "database/migrations", nil)
+	switch args[0] {
+	case "up":
+		return runner.Run(context.Background())
+	case "down":
+		return runner.Rollback(context.Background())
+	default:
+		return fmt.Errorf("unknown migration command %q; use up or down", args[0])
 	}
 }

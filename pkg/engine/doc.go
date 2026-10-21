@@ -1,12 +1,11 @@
-// Package core provides the fundamental building blocks of an Astra application,
-// including the IoC Container and the Application lifecycle manager.
+// Package engine provides the lifecycle manager and shared contracts for an
+// Astra application.
 //
-// Astra applications are built around the concept of Service Providers which
-// allow for modular, decoupled growth of the framework and user applications.
-//
-// Core responsibilities:
-//   - Container: Typed Dependency Injection and service resolution.
-//   - Application: Managing the startup and shutdown sequence (hooks).
-//   - Configuration: Unified access to environment variables and config files.
-//   - Logger: Standardized slog-based logging across all framework components.
+// Components are constructed by the application (usually with Wire) and
+// registered explicitly with App.RegisterComponent. A managed component must
+// implement Start(context.Context) error and Stop(context.Context) error.
+// Start runs in registration order and must not return before the component is
+// ready. Stop runs in reverse order, must honor its context, and must be safe
+// after a partial start. The App owns no service registry and performs no
+// implicit dependency resolution.
 package engine
