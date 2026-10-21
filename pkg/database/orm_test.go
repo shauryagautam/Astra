@@ -199,8 +199,8 @@ func TestORMSecurity(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid order direction")
 	})
 
-	// 4. Test Mass Assignment Protection on Update(data)
-	t.Run("Mass Assignment Protection on Update", func(t *testing.T) {
+	// 4. Test write-protected fields on Update(data)
+	t.Run("Write-protected fields on Update", func(t *testing.T) {
 		_, err = db.Exec(ctx, "CREATE TABLE secure_users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, role TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)")
 		assert.NoError(t, err)
 

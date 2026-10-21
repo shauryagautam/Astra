@@ -10,35 +10,72 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shauryagautam/Astra/pkg/observability/audit"
 	"github.com/shauryagautam/Astra/pkg/engine/event"
+	identityclaims "github.com/shauryagautam/Astra/pkg/identity/claims"
+	"github.com/shauryagautam/Astra/pkg/observability/audit"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	identityclaims "github.com/shauryagautam/Astra/pkg/identity/claims"
 	"sync"
 )
 
-var (
+// Guards is an explicit collection of named authentication strategies.
+//
+// Applications should construct a Guards value and pass it to the code that
+// needs authentication. The package-level functions below remain for
+// compatibility with older applications.
+type Guards struct {
 	mu     sync.RWMutex
-	guards = make(map[string]Guard)
-)
+	guards map[string]Guard
+}
 
-// Register registers a guard by name.
+// NewGuards creates an empty collection of authentication strategies.
+func NewGuards() *Guards {
+	return &Guards{guards: make(map[string]Guard)}
+}
+
+// Add associates name with an authentication strategy.
+func (g *Guards) Add(name string, guard Guard) {
+	if g == nil || guard == nil {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.guards == nil {
+		g.guards = make(map[string]Guard)
+	}
+	g.guards[name] = guard
+}
+
+// Get returns the authentication strategy associated with name.
+func (g *Guards) Get(name string) Guard {
+	if g == nil {
+		return nil
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.guards[name]
+}
+
+var defaultGuards = NewGuards()
+
+// Register adds a guard to the process-wide compatibility collection.
+//
+// Deprecated: construct a Guards value and call Add instead.
 func Register(name string, g Guard) {
-	mu.Lock()
-	defer mu.Unlock()
-	guards[name] = g
+	defaultGuards.Add(name, g)
 }
 
-// Resolve retrieves a registered guard by name.
+// Resolve retrieves a guard from the process-wide compatibility collection.
+//
+// Deprecated: construct a Guards value and call Get instead.
 func Resolve(name string) Guard {
-	mu.RLock()
-	defer mu.RUnlock()
-	return guards[name]
+	return defaultGuards.Get(name)
 }
 
-// GetGuard is an alias for Resolve.
+// GetGuard retrieves a guard from the process-wide compatibility collection.
+//
+// Deprecated: construct a Guards value and call Get instead.
 func GetGuard(name string) Guard {
 	return Resolve(name)
 }
@@ -82,7 +119,7 @@ func (g *JWTGuard) Name() string { return g.name }
 // Attempt validates the JWT from the Authorization header and sets the user context.
 func (g *JWTGuard) Attempt(c RequestContext) error {
 	req := c.GetRequest()
-	
+
 	tracer := otel.Tracer("astra.auth")
 	ctx, span := tracer.Start(req.Context(), "auth.guard.jwt", trace.WithAttributes(
 		attribute.String("security.event", "authentication_attempt"),
@@ -158,7 +195,6 @@ func (g *JWTGuard) Logout(c RequestContext) error {
 	// JWT is stateless, but we could blacklist here if needed
 	return nil
 }
-
 
 // CookieGuard implements Guard for Session cookies using Redis mapping.
 type CookieGuard struct {
@@ -242,7 +278,6 @@ func (g *CookieGuard) Attempt(c RequestContext) error {
 
 	return nil
 }
-
 
 // Login creates a new session and issues a cookie.
 // It rotates both the auth token and the underlying web session ID.

@@ -991,7 +991,7 @@ func (q *QueryBuilder[T]) toUpdateSQL(data map[string]any) (string, []any) {
 
 	keys := make([]string, 0, len(data))
 	for col := range data {
-		// Mass assignment protection
+		// Exclude fields marked as write-protected.
 		if q.isColumnGuarded(col) {
 			continue
 		}

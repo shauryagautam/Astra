@@ -1,5 +1,5 @@
-// Package http provides the web layer for the Astra framework, integrating
-// routing, middleware, and a high-performance request context.
+// Package http provides routing, middleware, and request-context utilities for
+// Go applications.
 //
 // The package is built on top of go-chi but provides a much richer Context
 // object that simplifies binding, validation, and response handling.

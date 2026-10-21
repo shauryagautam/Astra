@@ -66,22 +66,39 @@ type OAuth2Provider interface {
 }
 
 // OAuth2Manager coordinates OAuth2 flows with state management via Redis.
+// Providers are supplied at construction time so the application owns the
+// composition of its authentication adapters.
 type OAuth2Manager struct {
 	providers map[string]OAuth2Provider
 	redis     redis.UniversalClient
 }
 
-// NewOAuth2Manager creates a new OAuth2Manager.
-func NewOAuth2Manager(redisClient redis.UniversalClient) *OAuth2Manager {
-	return &OAuth2Manager{
-		providers: make(map[string]OAuth2Provider),
+// NewOAuth2Manager creates a manager with the supplied providers.
+func NewOAuth2Manager(redisClient redis.UniversalClient, providers ...OAuth2Provider) *OAuth2Manager {
+	manager := &OAuth2Manager{
+		providers: make(map[string]OAuth2Provider, len(providers)),
 		redis:     redisClient,
 	}
+	for _, provider := range providers {
+		manager.Add(provider)
+	}
+	return manager
+}
+
+// Add adds a provider to the manager.
+func (m *OAuth2Manager) Add(provider OAuth2Provider) {
+	if provider == nil {
+		return
+	}
+	m.providers[provider.Name()] = provider
 }
 
 // Register adds a provider to the manager.
+//
+// Deprecated: pass providers to NewOAuth2Manager or call Add during
+// application composition.
 func (m *OAuth2Manager) Register(provider OAuth2Provider) {
-	m.providers[provider.Name()] = provider
+	m.Add(provider)
 }
 
 // Provider returns a registered provider by name.
@@ -251,4 +268,3 @@ func GenerateCodeChallenge(verifier string) string {
 	hash := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
-

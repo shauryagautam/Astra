@@ -90,19 +90,27 @@ func (a *App) Env() *config.Config          { return a.env }
 func (a *App) Logger() *slog.Logger         { return a.logger }
 func (a *App) BaseContext() context.Context { return a.ctx }
 
-// RegisterComponent registers a lifecycle component. Components must be
-// registered before Boot and are started in this order.
-func (a *App) RegisterComponent(c Component) error {
+// AddComponent adds a lifecycle component. Components must be added before
+// Start and are started in this order.
+func (a *App) AddComponent(c Component) error {
 	if c == nil {
-		return errors.New("engine: cannot register a nil component")
+		return errors.New("engine: cannot add a nil component")
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.state != stateNew {
-		return errors.New("engine: components must be registered before Boot")
+		return errors.New("engine: components must be added before Start")
 	}
 	a.components = append(a.components, c)
 	return nil
+}
+
+// RegisterComponent adds a lifecycle component.
+//
+// Deprecated: use AddComponent. The old name is retained for source
+// compatibility with existing applications.
+func (a *App) RegisterComponent(c Component) error {
+	return a.AddComponent(c)
 }
 
 // OnStart adds a startup hook. Hooks are snapshotted before execution and may

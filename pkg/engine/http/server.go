@@ -85,7 +85,7 @@ func (s *Server) ServeGRPC(grpcSrv *grpc.Server) *Server {
 }
 
 // Start runs the server in a goroutine and returns nil.
-// It complies with the framework.Starter interface.
+// It implements the engine.Component lifecycle interface.
 //
 // When a gRPC server has been registered via ServeGRPC, cmux is used to route
 // HTTP/1.1 traffic to the Astra router and HTTP/2 gRPC traffic to the gRPC server

@@ -10,10 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/shauryagautam/Astra/pkg/engine/event"
-	"github.com/shauryagautam/Astra/pkg/engine/json"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/shauryagautam/Astra/pkg/engine/event"
+	"github.com/shauryagautam/Astra/pkg/engine/json"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -101,9 +101,16 @@ func (w *RedisWorker) WithConcurrency(n int) *RedisWorker {
 	return w
 }
 
-// Register registers a named job factory.
-func (w *RedisWorker) Register(name string, factory func() Job) {
+// AddHandler associates a job name with a factory used to create jobs.
+func (w *RedisWorker) AddHandler(name string, factory func() Job) {
 	w.handlers[name] = factory
+}
+
+// Register registers a named job factory.
+//
+// Deprecated: use AddHandler during application composition.
+func (w *RedisWorker) Register(name string, factory func() Job) {
+	w.AddHandler(name, factory)
 }
 
 // Start begins polling Redis for new jobs.

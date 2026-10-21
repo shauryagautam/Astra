@@ -1,14 +1,14 @@
-// Package auth provides a comprehensive authentication and authorization suite
-// for the Astra framework. It supports multiple authentication guards,
-// password hashing, JWT management, and OAuth2 integration.
+// Package auth provides authentication building blocks for Go applications.
+// It supports multiple authentication strategies, password hashing, JWT
+// management, and OAuth2 integration.
 //
 // Core Features:
-//   - Guards: JWT and Session-based authentication guards.
-//   - Hashing: Industry-standard password hashing using Argon2ID.
-//   - Tokens: Built-in JWT generation, signing, and verification.
-//   - OAuth2: First-class support for social login providers.
-//   - Auditing: PSR-compliant audit logging for security event.
+//   - Authentication strategies: JWT and session-based strategies.
+//   - Password hashing: Argon2ID password hashing.
+//   - Tokens: JWT generation, signing, and verification.
+//   - OAuth2: Adapters for social login providers.
+//   - Auditing: Audit logging for security events.
 //
-// Typical usage involves registering an AuthProvider and using the auth.Middleware
-// in your HTTP routes.
+// Construct the dependencies used by an application and pass them to its
+// handlers and middleware.
 package auth

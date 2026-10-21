@@ -1,7 +1,8 @@
 package database
 
-// Standalone constructors allow using the Astra ORM in any Go project without
-// pulling in the full framework framework. Add to your go.mod with:
+// Standalone constructors allow using Astra's database package in any Go
+// project without importing the application lifecycle package. Add to your
+// go.mod with:
 //
 //	go get github.com/shauryagautam/Astra/pkg/database
 //
@@ -18,7 +19,7 @@ package database
 
 // NewStandalone establishes a database connection and returns an *DB.
 // It is identical to Open() but explicitly documented as requiring no dependency
-// on the engine.App framework struct. Suitable for:
+// on the engine.App lifecycle manager. Suitable for:
 //   - Standard net/http projects
 //   - CLI tools that need ORM access
 //   - Microservices that want only the ORM package

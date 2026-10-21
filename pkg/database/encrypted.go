@@ -21,20 +21,20 @@ type Encrypted[T any] struct {
 }
 
 var encryptionKey []byte
-var errNoKey = errors.New("orm: APP_KEY is not initialized; call orm.InitializeEncryption(key) during boot")
+var errNoKey = errors.New("database: APP_KEY is not initialized; call InitializeEncryption during application startup")
 
 // InitializeEncryption derives the 32-byte AES key from the application key.
 // This should be called during application startup, after the database is constructed.
 func InitializeEncryption(appKey string) error {
 	if appKey == "" {
-		return fmt.Errorf("orm: cannot initialize encryption with an empty key")
+		return fmt.Errorf("database: cannot initialize encryption with an empty key")
 	}
 
 	// Derive 32-byte key using HKDF-SHA256
 	kdf := hkdf.New(sha256.New, []byte(appKey), nil, []byte("astra-orm-encryption"))
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(kdf, key); err != nil {
-		return fmt.Errorf("orm: failed to derive encryption key: %w", err)
+		return fmt.Errorf("database: failed to derive encryption key: %w", err)
 	}
 
 	encryptionKey = key

@@ -1,4 +1,4 @@
-// Package http provides HTTP transport utilities for the Astra framework.
+// Package http provides HTTP transport utilities for Go applications.
 //
 // In addition to the inbound-traffic helpers (router, middleware, context),
 // this file adds a resilient outbound client constructor that mirrors the same

@@ -31,7 +31,7 @@ type Dashboard struct {
 }
 
 type subscriber struct {
-	ch     chan DashboardEntry
+	ch chan DashboardEntry
 }
 
 // NewDashboard creates a new Dashboard service.
@@ -54,12 +54,12 @@ func (d *Dashboard) Subscribe() (<-chan DashboardEntry, func()) {
 
 	d.subNextID++
 	id := d.subNextID
-	
+
 	// Use a slightly larger buffer to handle bursty telemetry
 	ch := make(chan DashboardEntry, 100)
-	
+
 	d.subscribers[id] = &subscriber{
-		ch:     ch,
+		ch: ch,
 	}
 
 	unsubscribe := func() {
@@ -149,7 +149,7 @@ func (d *Dashboard) TrackRedis(command string, args any, duration time.Duration)
 	})
 }
 
-// TrackEvent adds a framework event entry to the dashboard.
+// TrackEvent adds an application event entry to the dashboard.
 func (d *Dashboard) TrackEvent(name string, payload any) {
 	d.addEntry(DashboardEntry{
 		Type:    "event",
@@ -178,7 +178,7 @@ func (d *Dashboard) addEntry(entry DashboardEntry) {
 		select {
 		case sub.ch <- entry:
 		default:
-			// Buffer full, skip this subscriber to avoid framework stalling
+			// Buffer full, skip this subscriber to avoid blocking event delivery.
 		}
 	}
 }

@@ -7,7 +7,8 @@ import (
 )
 
 // Standalone constructors allow using the Astra cache package in any Go project
-// without pulling in the full framework framework. Add to your go.mod with:
+// without importing the application lifecycle package. Add to your go.mod
+// with:
 //
 //	go get github.com/shauryagautam/Astra/pkg/cache
 //

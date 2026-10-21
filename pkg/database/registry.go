@@ -6,9 +6,9 @@ import (
 	"sync"
 )
 
-var registry sync.Map // map[reflect.Type]*ModelMeta
+var metadataCache sync.Map // map[reflect.Type]*ModelMeta
 
-// ModelMeta holds pre-computed metadata for a model.
+// ModelMeta holds pre-computed persistence metadata for a Go type.
 type ModelMeta struct {
 	Type        reflect.Type
 	TableName   string
@@ -29,12 +29,12 @@ type ColumnMeta struct {
 	IsPK       bool
 	IsAuto     bool
 	IsSoftDel  bool
-	IsGuarded  bool // Mass assignment protection
+	IsGuarded  bool // Excludes the field from map-based writes.
 	IsNullZero bool
 	Type       reflect.Type
 }
 
-// RelationMeta holds metadata for a model relation.
+// RelationMeta describes a relationship between persisted Go types.
 type RelationMeta struct {
 	FieldName  string
 	Type       string // "has_one", "has_many", "belongs_to", "many_to_many"
@@ -59,7 +59,10 @@ func fieldByIndex(v reflect.Value, index []int) reflect.Value {
 	return v
 }
 
-// RegisterModel manually adds metadata for a type, typically called by generated code.
+// RegisterModel adds metadata for a type, typically called by generated code.
+//
+// Deprecated: metadata is built on demand; use this only when generated
+// metadata is part of the application's composition.
 func RegisterModel[T any](meta ModelMeta) {
 	var zero T
 	t := reflect.TypeOf(zero)
@@ -82,7 +85,7 @@ func RegisterModel[T any](meta ModelMeta) {
 			}
 		}
 	}
-	registry.Store(t, &meta)
+	metadataCache.Store(t, &meta)
 }
 
 // GetMeta retrieves or builds metadata for a type.
@@ -90,17 +93,17 @@ func GetMeta(t reflect.Type) *ModelMeta {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	if val, ok := registry.Load(t); ok {
+	if val, ok := metadataCache.Load(t); ok {
 		return val.(*ModelMeta)
 	}
-	// Fallback to runtime reflection (deprecated Path).
+	// Build metadata lazily when generated metadata is not available.
 	meta := buildMeta(t, nil)
-	val, _ := registry.LoadOrStore(t, meta)
+	val, _ := metadataCache.LoadOrStore(t, meta)
 	return val.(*ModelMeta)
 }
 
 // buildMeta recursively constructs ModelMeta for t.
-// Deprecated: Use static registration via generate:glue.
+// Metadata is built recursively from the Go type and its tags.
 func buildMeta(t reflect.Type, parentIndex []int) *ModelMeta {
 	meta := &ModelMeta{
 		Type:        t,
@@ -312,13 +315,12 @@ func isRelationType(t reflect.Type) bool {
 		n == "MorphTo"
 }
 
-
 // GetMetaByName finds registered model metadata by its type name or snake_case/table name representation.
 func GetMetaByName(name string) *ModelMeta {
 	var found *ModelMeta
 	norm := strings.ToLower(strings.TrimSpace(name))
 
-	registry.Range(func(key, value any) bool {
+	metadataCache.Range(func(key, value any) bool {
 		meta := value.(*ModelMeta)
 		tName := strings.ToLower(meta.Type.Name())
 		if tName == norm || toSnakeCase(meta.Type.Name()) == norm || strings.ToLower(meta.TableName) == norm {
@@ -371,4 +373,3 @@ func toSnakeCase(s string) string {
 	}
 	return result.String()
 }
-

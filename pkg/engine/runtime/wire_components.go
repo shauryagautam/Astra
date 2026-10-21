@@ -10,7 +10,7 @@ import (
 	"github.com/shauryagautam/Astra/pkg/engine/config"
 )
 
-// ComponentSet is the Wire set for core framework dependencies.
+// ComponentSet is the Wire set for core application dependencies.
 var ComponentSet = wire.NewSet(
 	// Core Dependencies
 	ProvideEnv,
@@ -29,7 +29,7 @@ func ProvideEnv() (*config.Config, error) {
 	return config.Load(".env")
 }
 
-// ProvideAstraConfig provides the typed framework configuration.
+// ProvideAstraConfig provides the typed application configuration.
 func ProvideAstraConfig(env *config.Config) *config.AstraConfig {
 	return config.LoadFromEnv(env)
 }

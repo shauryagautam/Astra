@@ -28,8 +28,8 @@ type Component interface {
 }
 ```
 
-Components are constructed explicitly and registered in dependency order.
-Startup runs in registration order; shutdown runs in reverse order. Components
+Components are constructed explicitly and added in dependency order.
+Startup runs in addition order; shutdown runs in reverse order. Components
 must honor the context passed to both methods, tolerate a partially completed
 startup, and release only resources they own. `App` does not resolve services
 by name and has no service locator.
